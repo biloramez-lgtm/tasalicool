@@ -85,43 +85,34 @@ fun HomeScreen(navController: NavHostController) {
 
             Spacer(modifier = Modifier.height(30.dp))
 
-            /* ================= OTHER GAMES ================= */
+            /* ================= WIFI LOCAL MODE ================= */
+
+            Text(
+                text = "اللعب المحلي عبر Wi-Fi",
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             GameCard(
-                title = "Solitaire",
-                description = "لعبة فردية كلاسيكية",
-                icon = "🎯",
-                onClick = { navController.navigate("solitaire") }
+                title = "استضافة لعبة",
+                description = "إنشاء سيرفر محلي واللعب مع أصدقائك",
+                icon = "📡",
+                onClick = {
+                    navController.navigate("host_game")
+                }
             )
 
             GameCard(
-                title = "Hand Game",
-                description = "لعبة متعددة اللاعبين",
-                icon = "🤝",
-                onClick = { navController.navigate("hand_game") }
+                title = "الانضمام للعبة",
+                description = "أدخل IP الجهاز المضيف للانضمام",
+                icon = "🌐",
+                onClick = {
+                    navController.navigate("join_game")
+                }
             )
-
-            Spacer(modifier = Modifier.height(30.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-
-                OutlinedButton(
-                    onClick = { navController.navigate("bluetooth") },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Bluetooth")
-                }
-
-                OutlinedButton(
-                    onClick = { navController.navigate("network") },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Network")
-                }
-            }
 
             Spacer(modifier = Modifier.height(40.dp))
 
@@ -138,12 +129,18 @@ fun HomeScreen(navController: NavHostController) {
                 Text("حول التطبيق")
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
-            /* ================= FOOTER (مهم لغوغل) ================= */
+            /* ================= FOOTER ================= */
 
             Text(
                 text = "Developed by Mr million",
+                color = Color.LightGray,
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Text(
+                text = "© 2026 All Rights Reserved",
                 color = Color.LightGray,
                 style = MaterialTheme.typography.bodySmall
             )
