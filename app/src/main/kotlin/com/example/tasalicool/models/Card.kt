@@ -49,7 +49,7 @@ data class Card(
 }
 
 /* =====================================================
-   Deck
+   Deck (FIXED VERSION)
    ===================================================== */
 
 data class Deck(
@@ -74,6 +74,15 @@ data class Deck(
 
     fun drawCard(): Card? =
         if (cards.isNotEmpty()) cards.removeAt(0) else null
+
+    /* ✅ هذه الدالة كانت ناقصة */
+    fun drawCards(count: Int): List<Card> {
+        val drawn = mutableListOf<Card>()
+        repeat(count) {
+            drawCard()?.let { drawn.add(it) }
+        }
+        return drawn
+    }
 }
 
 /* =====================================================
@@ -177,169 +186,6 @@ data class RoundResult(
     val roundNumber: Int,
     val teamScores: Map<Int, Int>
 ) : Serializable
-
-/* =====================================================
-   GameState (Competitive Engine)
-   ===================================================== */
-
-data class GameState(
-
-    val players: List<Player>,
-    var currentPlayerIndex: Int = 0,
-    val deck: Deck = Deck(),
-    val currentTrick: MutableList<Pair<Player, Card>> = mutableListOf(),
-
-    var roundNumber: Int = 1,
-    var gameInProgress: Boolean = true,
-    var winner: Player? = null,
-
-    val matchHistory: MutableList<RoundResult> = mutableListOf()
-
-) : Serializable {
-
-    fun getCurrentPlayer(): Player =
-        players[currentPlayerIndex]
-
-    fun nextPlayer() {
-        currentPlayerIndex =
-            (currentPlayerIndex + 1) % players.size
-    }
-
-    /* ================= Card Play ================= */
-
-    fun playCard(player: Player, card: Card): Boolean {
-
-        if (!gameInProgress) return false
-        if (player != getCurrentPlayer()) return false
-        if (!player.hand.contains(card)) return false
-
-        if (currentTrick.isNotEmpty()) {
-            val leadSuit = currentTrick.first().second.suit
-            val hasLead = player.hand.any { it.suit == leadSuit }
-            if (hasLead && card.suit != leadSuit) return false
-        }
-
-        player.removeCard(card)
-        currentTrick.add(player to card)
-
-        if (currentTrick.size == 4) {
-            resolveTrick()
-        } else {
-            nextPlayer()
-        }
-
-        return true
-    }
-
-    /* ================= Trick Logic ================= */
-
-    private fun resolveTrick() {
-
-        val leadSuit = currentTrick.first().second.suit
-
-        val winnerPlay = currentTrick.maxByOrNull { (_, card) ->
-            when {
-                card.isTrump() -> card.strength() + 100
-                card.suit == leadSuit -> card.strength()
-                else -> 0
-            }
-        }!!
-
-        val winningPlayer = winnerPlay.first
-        winningPlayer.incrementTrick()
-
-        currentTrick.clear()
-        currentPlayerIndex = players.indexOf(winningPlayer)
-
-        if (players.all { it.hand.isEmpty() }) {
-            endRound()
-        }
-    }
-
-    /* ================= Round End ================= */
-
-    private fun endRound() {
-
-        players.forEach { it.applyRoundScore() }
-
-        recordRoundResult()
-
-        checkGameEnd()
-
-        players.forEach { it.resetForNewRound() }
-        deck.reset()
-    }
-
-    private fun checkGameEnd() {
-
-        val teamScores =
-            players.groupBy { it.teamId }
-                .mapValues { entry ->
-                    entry.value.sumOf { it.score }
-                }
-
-        val winningTeam =
-            teamScores.maxByOrNull { it.value }
-
-        if (winningTeam != null &&
-            winningTeam.value >= 400) {
-
-            gameInProgress = false
-
-            val winners =
-                players.filter {
-                    it.teamId == winningTeam.key
-                }
-
-            winner = winners.first()
-
-            updateElo(winningTeam.key)
-        }
-    }
-
-    /* ================= ELO ================= */
-
-    private fun updateElo(winningTeamId: Int) {
-
-        val team1 =
-            players.filter { it.teamId == 1 }
-
-        val team2 =
-            players.filter { it.teamId == 2 }
-
-        val avg1 =
-            team1.map { it.rating }.average().toInt()
-
-        val avg2 =
-            team2.map { it.rating }.average().toInt()
-
-        val team1Won =
-            winningTeamId == 1
-
-        team1.forEach {
-            it.updateRating(avg2, team1Won)
-        }
-
-        team2.forEach {
-            it.updateRating(avg1, !team1Won)
-        }
-    }
-
-    fun recordRoundResult() {
-
-        val teamScores =
-            players.groupBy { it.teamId }
-                .mapValues { entry ->
-                    entry.value.sumOf { it.score }
-                }
-
-        matchHistory.add(
-            RoundResult(roundNumber, teamScores)
-        )
-
-        roundNumber++
-    }
-}
 
 /* =====================================================
    Game Type
