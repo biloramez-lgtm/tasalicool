@@ -34,7 +34,7 @@ data class Player(
 
     fun removeCard(card: Card): Boolean {
         val removed = hand.remove(card)
-        sortHand()
+        if (removed) sortHand()
         return removed
     }
 
@@ -43,7 +43,14 @@ data class Player(
     }
 
     fun sortHand() {
-        hand.sortByDescending { it.strength() }
+        hand.sortWith(
+            compareByDescending<Card> { it.isTrump() }
+                .thenByDescending { it.strength() }
+        )
+    }
+
+    fun hasCard(card: Card): Boolean {
+        return hand.contains(card)
     }
 
     fun resetForNewRound() {
@@ -51,6 +58,14 @@ data class Player(
         tricksWon = 0
         clearHand()
     }
+
+    /* ===================================================== */
+    /* ================= GAME INFO HELPERS ================= */
+    /* ===================================================== */
+
+    fun isOutOfCards(): Boolean = hand.isEmpty()
+
+    fun isWinning(): Boolean = tricksWon >= bid
 
     /* ===================================================== */
     /* ================= TRICKS ============================ */
@@ -125,13 +140,11 @@ data class Player(
     }
 
     /* ===================================================== */
-    /* ================= NETWORK SYNC ====================== */
+    /* ================= NETWORK COPIES ==================== */
     /* ===================================================== */
 
     /**
-     * نسخة كاملة للشبكة (تستخدم لإرسال الحالة من Host)
-     * نرسل اليد لأننا في نظام Host-Client
-     * Host هو المصدر الوحيد للحقيقة
+     * نسخة كاملة للشبكة (Host يرسلها)
      */
     fun toNetworkFullCopy(): Player {
         return copy(
@@ -140,7 +153,8 @@ data class Player(
     }
 
     /**
-     * نسخة آمنة (لو أردت إخفاء أوراق لاعبين آخرين مستقبلاً)
+     * نسخة آمنة مستقبلية (حالياً نفس الكاملة)
+     * جاهزة إذا أردت إخفاء أوراق الآخرين لاحقاً
      */
     fun toNetworkSafeCopy(): Player {
         return copy(
@@ -164,5 +178,21 @@ data class Player(
         hand.clear()
         hand.addAll(networkPlayer.hand)
         sortHand()
+    }
+
+    /* ===================================================== */
+    /* ================= UTILITIES ========================= */
+    /* ===================================================== */
+
+    fun displayScore(): String {
+        return "$score pts"
+    }
+
+    fun shortInfo(): String {
+        return "$name | Score: $score | Tricks: $tricksWon"
+    }
+
+    override fun toString(): String {
+        return "Player(id=$id, name=$name, score=$score)"
     }
 }
