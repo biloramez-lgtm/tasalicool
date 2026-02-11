@@ -74,14 +74,18 @@ class Game400Engine(
 
     fun playAITurnIfNeeded() {
 
+        if (!roundActive) return
+
         val current = getCurrentPlayer()
 
-        if (!current.isLocal && roundActive) {
+        if (!current.isLocal) {
 
             val state = buildGameState()
             val card = Game400AI.chooseCard(current, state)
 
             playCard(current, card)
+
+            // استدعاء متسلسل حتى يصل لدور اللاعب
             playAITurnIfNeeded()
         }
     }
@@ -114,8 +118,8 @@ class Game400Engine(
         player.removeCard(card)
         currentTrick.add(player to card)
 
-        // 🧠 AI Memory
-        Game400AI.rememberCard(card)
+        // 🔥 تم التعديل ليتوافق مع Legendary AI
+        Game400AI.rememberCard(player, card)
 
         if (currentTrick.size == 4)
             finishTrick()
@@ -136,6 +140,7 @@ class Game400Engine(
     private fun finishTrick() {
 
         val winner = determineTrickWinner()
+
         winner.first.incrementTrick()
 
         currentPlayerIndex =
@@ -151,21 +156,21 @@ class Game400Engine(
     private fun determineTrickWinner():
             Pair<Player, Card> {
 
-        val lead =
+        val leadSuit =
             currentTrick.first().second.suit
 
-        val trump =
+        val trumpCards =
             currentTrick.filter {
                 it.second.suit ==
                         Game400Constants.TRUMP_SUIT
             }
 
-        return if (trump.isNotEmpty())
-            trump.maxBy { it.second.rank.value }
+        return if (trumpCards.isNotEmpty())
+            trumpCards.maxBy { it.second.strength() }
         else
             currentTrick
-                .filter { it.second.suit == lead }
-                .maxBy { it.second.rank.value }
+                .filter { it.second.suit == leadSuit }
+                .maxBy { it.second.strength() }
     }
 
     private fun finishRound() {
@@ -184,6 +189,7 @@ class Game400Engine(
         elo.update(aiWon)
 
         players.forEach { it.applyRoundScore() }
+
         checkGameWinner()
 
         roundActive = false
@@ -203,14 +209,14 @@ class Game400Engine(
 
         if (currentTrick.isEmpty()) return true
 
-        val lead =
+        val leadSuit =
             currentTrick.first().second.suit
 
         val hasSuit =
-            player.hand.any { it.suit == lead }
+            player.hand.any { it.suit == leadSuit }
 
         return if (hasSuit)
-            card.suit == lead
+            card.suit == leadSuit
         else true
     }
 
