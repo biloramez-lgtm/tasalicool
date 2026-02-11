@@ -65,6 +65,11 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.0")
 
     // =========================
+    // 🔥 Coroutines (مهم للشبكة)
+    // =========================
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // =========================
     // Compose BOM (مستقر)
     // =========================
     implementation(platform("androidx.compose:compose-bom:2024.04.01"))
@@ -93,7 +98,7 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
 
     // =========================
-    // 🔥 Gson (مطلوب للحفظ)
+    // 🔥 Gson (للشبكة + الحفظ)
     // =========================
     implementation("com.google.code.gson:gson:2.10.1")
 
