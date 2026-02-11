@@ -14,22 +14,30 @@ data class Game400Round(
     val players: List<Player>,
     val deck: Deck = Deck(),
     val discardPile: MutableList<Card> = mutableListOf(),
-    val currentPlayerIndex: Int = 0,
+    var currentPlayerIndex: Int = 0,
     var roundInProgress: Boolean = true
 ) : Serializable {
 
+    private var initialized = false
+
     fun initialize() {
+        if (initialized) return
+        initialized = true
+
         // توزيع الأوراق
         players.forEach { player ->
             player.addCards(deck.drawCards(Game400Rules.CARDS_PER_HAND))
         }
-        // الورقة الأولى في pile الرمي
+
+        // أول ورقة في الرمي
         deck.drawCard()?.let { discardPile.add(it) }
     }
 
     fun getCurrentPlayer(): Player = players[currentPlayerIndex]
 
-    fun getNextPlayerIndex(): Int = (currentPlayerIndex + 1) % players.size
+    fun nextTurn() {
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.size
+    }
 
     fun canPlay(card: Card): Boolean {
         val lastCard = discardPile.lastOrNull() ?: return true
@@ -38,8 +46,12 @@ data class Game400Round(
 
     fun playCard(card: Card): Boolean {
         val player = getCurrentPlayer()
+
+        if (!canPlay(card)) return false
+
         return if (player.removeCard(card)) {
             discardPile.add(card)
+            nextTurn()
             true
         } else {
             false
@@ -47,16 +59,13 @@ data class Game400Round(
     }
 
     fun drawFromDeck(player: Player) {
+        if (deck.isEmpty()) return
         deck.drawCard()?.let { player.addCards(listOf(it)) }
-    }
-
-    fun nextTurn() {
-        val currentIndex = currentPlayerIndex
-        // تحديث الفهرس في نفس السياق
     }
 
     fun calculateRoundScores(): Map<Player, Int> {
         val scores = mutableMapOf<Player, Int>()
+
         players.forEach { player ->
             var score = 0
             player.hand.forEach { card ->
@@ -68,6 +77,7 @@ data class Game400Round(
             }
             scores[player] = score
         }
+
         return scores
     }
 
