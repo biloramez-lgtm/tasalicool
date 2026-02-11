@@ -1,5 +1,6 @@
 package com.example.tasalicool.models
 
+import com.google.gson.Gson
 import java.io.Serializable
 
 data class GameState(
@@ -10,8 +11,8 @@ data class GameState(
 
     val deck: Deck = Deck(),
 
+    // نخزن playerId بدل Player object
     val currentTrick: MutableList<Pair<String, Card>> = mutableListOf(),
-    // نخزن playerId بدل Player object لتفادي مشاكل الشبكة
 
     var roundNumber: Int = 1,
 
@@ -21,7 +22,11 @@ data class GameState(
 
 ) : Serializable {
 
-    /* ================= CURRENT PLAYER ================= */
+    private val gson = Gson()
+
+    /* ===================================================== */
+    /* ================= CURRENT PLAYER ==================== */
+    /* ===================================================== */
 
     fun getCurrentPlayer(): Player? =
         players.getOrNull(currentPlayerIndex)
@@ -32,7 +37,9 @@ data class GameState(
             (currentPlayerIndex + 1) % players.size
     }
 
-    /* ================= ROUND CONTROL ================= */
+    /* ===================================================== */
+    /* ================= ROUND CONTROL ===================== */
+    /* ===================================================== */
 
     fun isRoundFinished(): Boolean {
         if (players.isEmpty()) return true
@@ -52,13 +59,64 @@ data class GameState(
         currentPlayerIndex = 0
     }
 
-    /* ================= PLAY CARD ================= */
+    /* ===================================================== */
+    /* ================= PLAY CARD (LOCAL) ================= */
+    /* ===================================================== */
 
-    fun playCard(player: Player, card: Card): Boolean {
+    /**
+     * يستخدمه الجهاز المحلي
+     * يرجع payload جاهز للإرسال للشبكة
+     */
+    fun playCardAndCreateNetworkPayload(
+        playerId: String,
+        card: Card
+    ): Map<String, String>? {
 
-        if (!gameInProgress) return false
-        if (player != getCurrentPlayer()) return false
-        if (!player.hand.contains(card)) return false
+        val player = players.find { it.id == playerId }
+            ?: return null
+
+        if (!gameInProgress) return null
+        if (player != getCurrentPlayer()) return null
+        if (!player.hand.contains(card)) return null
+
+        player.removeCard(card)
+
+        currentTrick.add(player.id to card)
+
+        val payload = mapOf(
+            "playerId" to player.id,
+            "cardSuit" to card.suit.name,
+            "cardRank" to card.rank.name
+        )
+
+        if (currentTrick.size == players.size) {
+            evaluateTrick()
+        } else {
+            nextPlayer()
+        }
+
+        return payload
+    }
+
+    /* ===================================================== */
+    /* ================= APPLY NETWORK MOVE ================= */
+    /* ===================================================== */
+
+    /**
+     * يستخدمه جميع الأجهزة عند استلام CARD_PLAYED
+     */
+    fun applyNetworkCardPlayed(payload: Map<String, String>) {
+
+        val playerId = payload["playerId"] ?: return
+        val suitName = payload["cardSuit"] ?: return
+        val rankName = payload["cardRank"] ?: return
+
+        val player = players.find { it.id == playerId } ?: return
+
+        val card = Card(
+            suit = Suit.valueOf(suitName),
+            rank = Rank.valueOf(rankName)
+        )
 
         player.removeCard(card)
 
@@ -69,11 +127,11 @@ data class GameState(
         } else {
             nextPlayer()
         }
-
-        return true
     }
 
-    /* ================= TRICK EVALUATION ================= */
+    /* ===================================================== */
+    /* ================= TRICK EVALUATION ================== */
+    /* ===================================================== */
 
     private fun evaluateTrick() {
 
@@ -87,7 +145,6 @@ data class GameState(
 
             winnerPlayer?.incrementTrick()
 
-            // الفائز يبدأ الجولة التالية
             winnerPlayer?.let {
                 currentPlayerIndex = players.indexOf(it)
             }
@@ -100,7 +157,9 @@ data class GameState(
         }
     }
 
-    /* ================= ROUND FINISH ================= */
+    /* ===================================================== */
+    /* ================= ROUND FINISH ====================== */
+    /* ===================================================== */
 
     private fun finishRound() {
 
@@ -111,7 +170,9 @@ data class GameState(
         checkGameWinner()
     }
 
-    /* ================= DEAL CARDS ================= */
+    /* ===================================================== */
+    /* ================= DEAL CARDS ======================== */
+    /* ===================================================== */
 
     fun dealCards(cardsPerPlayer: Int = 5) {
 
@@ -121,7 +182,9 @@ data class GameState(
         }
     }
 
-    /* ================= TEAM SCORES ================= */
+    /* ===================================================== */
+    /* ================= TEAM SCORES ======================= */
+    /* ===================================================== */
 
     fun getTeamScores(): Map<Int, Int> {
 
@@ -132,7 +195,9 @@ data class GameState(
             }
     }
 
-    /* ================= GAME END ================= */
+    /* ===================================================== */
+    /* ================= GAME END ========================== */
+    /* ===================================================== */
 
     fun checkGameWinner(maxScore: Int = 400) {
 
@@ -157,11 +222,10 @@ data class GameState(
         deck.reset()
     }
 
+    /* ===================================================== */
     /* ================= NETWORK SAFE COPY ================= */
+    /* ===================================================== */
 
-    /**
-     * نسخة آمنة للشبكة (لا ترسل أوراق اللاعبين)
-     */
     fun toNetworkSafeCopy(): GameState {
 
         val safePlayers =
@@ -170,13 +234,10 @@ data class GameState(
 
         return copy(
             players = safePlayers,
-            deck = Deck(mutableListOf()), // لا نرسل deck
+            deck = Deck(mutableListOf())
         )
     }
 
-    /**
-     * تحديث الحالة من نسخة شبكة
-     */
     fun updateFromNetwork(networkState: GameState) {
 
         currentPlayerIndex = networkState.currentPlayerIndex
@@ -184,7 +245,6 @@ data class GameState(
         gameInProgress = networkState.gameInProgress
         winnerId = networkState.winnerId
 
-        // تحديث اللاعبين
         networkState.players.forEach { netPlayer ->
             players.find { it.id == netPlayer.id }
                 ?.updateFromNetwork(netPlayer)
