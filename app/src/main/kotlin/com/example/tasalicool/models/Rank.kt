@@ -1,6 +1,12 @@
 package com.example.tasalicool.models
 
-enum class Rank(val displayName: String, val value: Int) {
+import java.io.Serializable
+
+enum class Rank(
+    val displayName: String,
+    val value: Int
+) : Serializable {
+
     ACE("A", 14),
     KING("K", 13),
     QUEEN("Q", 12),
@@ -13,5 +19,15 @@ enum class Rank(val displayName: String, val value: Int) {
     FIVE("5", 5),
     FOUR("4", 4),
     THREE("3", 3),
-    TWO("2", 2)
+    TWO("2", 2);
+
+    companion object {
+        fun fromName(name: String): Rank? {
+            return values().find { it.name == name }
+        }
+
+        fun fromValue(value: Int): Rank? {
+            return values().find { it.value == value }
+        }
+    }
 }
