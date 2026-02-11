@@ -7,18 +7,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.example.tasalicool.network.NetworkActions
 import com.example.tasalicool.network.NetworkGameClient
 import com.example.tasalicool.network.NetworkMessage
-import com.example.tasalicool.network.NetworkActions
+import kotlinx.coroutines.*
 
 @Composable
 fun JoinGameScreen(navController: NavHostController) {
 
-    var serverIp by remember { mutableStateOf("") }
-    var isConnected by remember { mutableStateOf(false) }
-    var messages by remember { mutableStateOf(listOf<String>()) }
+    var ipAddress by remember { mutableStateOf("") }
+    var statusText by remember { mutableStateOf("غير متصل") }
+    var connected by remember { mutableStateOf(false) }
 
-    val client = remember { NetworkGameClient() }
+    val scope = rememberCoroutineScope()
+    val client = remember { NetworkGameClient("", 5000) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            client.disconnect()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -37,74 +45,69 @@ fun JoinGameScreen(navController: NavHostController) {
         Spacer(modifier = Modifier.height(30.dp))
 
         OutlinedTextField(
-            value = serverIp,
-            onValueChange = { serverIp = it },
+            value = ipAddress,
+            onValueChange = { ipAddress = it },
             label = { Text("أدخل IP السيرفر") },
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Button(
-            onClick = {
-                if (!isConnected && serverIp.isNotBlank()) {
-                    client.connect(
-                        hostIp = serverIp,
-                        onConnected = {
-                            isConnected = true
-                            messages = messages + "✅ تم الاتصال بالسيرفر"
-                        },
-                        onMessageReceived = { message ->
-                            messages = messages + "📩 ${message.action} من ${message.playerId}"
-                        },
-                        onDisconnected = {
-                            isConnected = false
-                            messages = messages + "❌ تم قطع الاتصال"
-                        }
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (isConnected) "متصل" else "اتصال")
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        if (isConnected) {
-            Button(
-                onClick = {
-                    client.sendMessage(
-                        NetworkMessage(
-                            playerId = client.playerId,
-                            gameType = "LOCAL_WIFI",
-                            action = NetworkActions.GAME_STARTED
-                        )
-                    )
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("إرسال رسالة تجريبية")
-            }
-        }
+        Text(statusText)
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        Text("السجل:")
+        Button(
+            onClick = {
 
-        Spacer(modifier = Modifier.height(10.dp))
+                scope.launch(Dispatchers.IO) {
+                    try {
 
-        messages.forEach {
-            Text("• $it")
+                        val realClient = NetworkGameClient(ipAddress, 5000)
+                        realClient.connect()
+
+                        withContext(Dispatchers.Main) {
+                            statusText = "تم الاتصال بالسيرفر"
+                            connected = true
+                        }
+
+                        // 🔥 إرسال رسالة انضمام
+                        realClient.sendMessage(
+                            NetworkMessage(
+                                playerId = "Player_${System.currentTimeMillis()}",
+                                gameType = "400",
+                                action = NetworkActions.PLAYER_JOINED
+                            )
+                        )
+
+                        // 🔥 الاستماع للرسائل
+                        while (true) {
+                            val message = realClient.receiveMessage()
+                            if (message != null) {
+                                withContext(Dispatchers.Main) {
+                                    statusText =
+                                        "رسالة من السيرفر: ${message.action}"
+                                }
+                            }
+                        }
+
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            statusText = "فشل الاتصال"
+                        }
+                    }
+                }
+
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("اتصال")
         }
 
         Spacer(modifier = Modifier.height(40.dp))
 
         Button(
-            onClick = {
-                client.disconnect()
-                navController.popBackStack()
-            },
+            onClick = { navController.popBackStack() },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("رجوع")
