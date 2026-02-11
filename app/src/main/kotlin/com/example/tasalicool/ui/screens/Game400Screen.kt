@@ -16,8 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.tasalicool.models.*
-import com.example.tasalicool.ui.components.CardView
-import com.example.tasalicool.ui.components.CompactCardView
+import com.example.tasalicool.ui.components.*
 import kotlinx.coroutines.delay
 
 @Composable
@@ -29,31 +28,10 @@ fun Game400Screen(navController: NavHostController) {
         Game400Engine(
             context = context,
             players = listOf(
-                Player(
-                    id = "p1",
-                    name = "أنت",
-                    teamId = 0,
-                    isLocal = true,
-                    difficulty = AIDifficulty.EASY
-                ),
-                Player(
-                    id = "p2",
-                    name = "يسار",
-                    teamId = 1,
-                    difficulty = AIDifficulty.HARD
-                ),
-                Player(
-                    id = "p3",
-                    name = "شريكك",
-                    teamId = 0,
-                    difficulty = AIDifficulty.NORMAL
-                ),
-                Player(
-                    id = "p4",
-                    name = "يمين",
-                    teamId = 1,
-                    difficulty = AIDifficulty.HARD
-                )
+                Player("p1", "أنت", teamId = 0, isLocal = true),
+                Player("p2", "يسار", teamId = 1, difficulty = AIDifficulty.HARD),
+                Player("p3", "شريكك", teamId = 0, difficulty = AIDifficulty.NORMAL),
+                Player("p4", "يمين", teamId = 1, difficulty = AIDifficulty.HARD)
             )
         )
     }
@@ -62,19 +40,13 @@ fun Game400Screen(navController: NavHostController) {
     var uiTrigger by remember { mutableStateOf(0) }
     var showRoundDialog by remember { mutableStateOf(false) }
 
-    /* ================= START ================= */
-
     LaunchedEffect(Unit) {
         engine.startNewRound()
         uiTrigger++
     }
 
-    /* ================= AI DRIVER ================= */
-
     LaunchedEffect(engine.currentPlayerIndex, uiTrigger) {
-        if (engine.roundActive &&
-            !engine.getCurrentPlayer().isLocal
-        ) {
+        if (engine.roundActive && !engine.getCurrentPlayer().isLocal) {
             delay(600)
             engine.playAITurnIfNeeded()
             uiTrigger++
@@ -90,8 +62,6 @@ fun Game400Screen(navController: NavHostController) {
     val topPlayer = engine.players[2]
     val rightPlayer = engine.players[3]
 
-    /* ================= ROUND RESULT DIALOG ================= */
-
     if (showRoundDialog) {
         AlertDialog(
             onDismissRequest = {},
@@ -100,16 +70,12 @@ fun Game400Screen(navController: NavHostController) {
                     showRoundDialog = false
                     engine.startNewRound()
                     uiTrigger++
-                }) {
-                    Text("جولة جديدة")
-                }
+                }) { Text("جولة جديدة") }
             },
             dismissButton = {
                 OutlinedButton(onClick = {
                     navController.popBackStack()
-                }) {
-                    Text("العودة للرئيسية")
-                }
+                }) { Text("العودة") }
             },
             title = { Text("انتهت الجولة") },
             text = {
@@ -122,26 +88,18 @@ fun Game400Screen(navController: NavHostController) {
         )
     }
 
-    /* ================= GAME OVER ================= */
-
     if (engine.isGameOver()) {
         AlertDialog(
             onDismissRequest = {},
             confirmButton = {
-                Button(onClick = {
-                    navController.popBackStack()
-                }) {
-                    Text("إنهاء اللعبة")
+                Button(onClick = { navController.popBackStack() }) {
+                    Text("إنهاء")
                 }
             },
             title = { Text("🏆 انتهت اللعبة") },
-            text = {
-                Text("الفائز: ${engine.gameWinner?.name}")
-            }
+            text = { Text("الفائز: ${engine.gameWinner?.name}") }
         )
     }
-
-    /* ================= UI ================= */
 
     Column(
         modifier = Modifier
@@ -152,18 +110,12 @@ fun Game400Screen(navController: NavHostController) {
 
         Row(verticalAlignment = Alignment.CenterVertically) {
 
-            IconButton(onClick = {
-                navController.popBackStack()
-            }) {
-                Icon(
-                    Icons.Default.ArrowBack,
-                    contentDescription = null,
-                    tint = Color.White
-                )
+            IconButton(onClick = { navController.popBackStack() }) {
+                Icon(Icons.Default.ArrowBack, null, tint = Color.White)
             }
 
             Text(
-                text = "🎴 لعبة 400 - Hybrid Elite AI",
+                "🎴 لعبة 400 - Hybrid Elite AI",
                 color = Color.White,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
@@ -172,7 +124,10 @@ fun Game400Screen(navController: NavHostController) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        PlayerSideInfo(topPlayer, engine)
+        PlayerSideInfo(
+            player = topPlayer,
+            isCurrentTurn = engine.getCurrentPlayer() == topPlayer
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -184,12 +139,14 @@ fun Game400Screen(navController: NavHostController) {
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            PlayerVerticalInfo(leftPlayer, engine)
+            PlayerVerticalInfo(
+                player = leftPlayer,
+                isCurrentTurn = engine.getCurrentPlayer() == leftPlayer
+            )
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
                 Text("الأكلة", color = Color.White)
-
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -199,18 +156,22 @@ fun Game400Screen(navController: NavHostController) {
                 }
             }
 
-            PlayerVerticalInfo(rightPlayer, engine)
+            PlayerVerticalInfo(
+                player = rightPlayer,
+                isCurrentTurn = engine.getCurrentPlayer() == rightPlayer
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        PlayerSideInfo(localPlayer, engine)
+        PlayerSideInfo(
+            player = localPlayer,
+            isCurrentTurn = engine.getCurrentPlayer() == localPlayer
+        )
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             items(localPlayer.hand) { card ->
                 CompactCardView(
                     card = card,
@@ -236,8 +197,8 @@ fun Game400Screen(navController: NavHostController) {
             },
             enabled =
                 selectedCard != null &&
-                engine.getCurrentPlayer().isLocal &&
-                engine.roundActive,
+                        engine.getCurrentPlayer().isLocal &&
+                        engine.roundActive,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("لعب الورقة")
