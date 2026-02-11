@@ -1,4 +1,4 @@
-package com.example.cardgames.bluetooth
+package com.example.tasalicool.bluetooth
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
