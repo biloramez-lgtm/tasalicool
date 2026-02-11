@@ -64,6 +64,17 @@ fun HomeScreen(navController: NavHostController) {
                 onClick = { navController.navigate("game_400") }
             )
 
+            Spacer(modifier = Modifier.height(20.dp))
+
+            /* ================= RESUME GAME ================= */
+
+            GameCard(
+                title = "متابعة اللعبة",
+                description = "استكمال الجولة المحفوظة",
+                icon = "💾",
+                onClick = { navController.navigate("resume_game") }
+            )
+
             Spacer(modifier = Modifier.height(30.dp))
 
             /* ================= OTHER GAMES ================= */
@@ -121,7 +132,8 @@ private fun FeaturedGameCard(
             containerColor = Color(0xFF1B5E20)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        shape = MaterialTheme.shapes.large
+        shape = MaterialTheme.shapes.large,
+        onClick = onClick
     ) {
 
         Column(
@@ -181,7 +193,8 @@ private fun GameCard(
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = MaterialTheme.shapes.large
+        shape = MaterialTheme.shapes.large,
+        onClick = onClick
     ) {
 
         Column(
