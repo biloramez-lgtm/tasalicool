@@ -15,6 +15,8 @@ import androidx.navigation.compose.*
 import com.example.tasalicool.ui.screens.Game400Screen
 import com.example.tasalicool.ui.screens.HomeScreen
 import com.example.tasalicool.ui.screens.AboutScreen
+import com.example.tasalicool.ui.screens.HostGameScreen
+import com.example.tasalicool.ui.screens.JoinGameScreen
 import com.example.tasalicool.ui.theme.TasalicoolTheme
 
 class MainActivity : ComponentActivity() {
@@ -86,8 +88,16 @@ fun TasalicoolNavGraph(navController: NavHostController) {
             PlaceholderScreen("Bluetooth Mode", navController)
         }
 
-        composable("network") {
-            PlaceholderScreen("Network Mode", navController)
+        /* ================= WIFI HOST ================= */
+
+        composable("host") {
+            HostGameScreen(navController)
+        }
+
+        /* ================= WIFI JOIN ================= */
+
+        composable("join") {
+            JoinGameScreen(navController)
         }
     }
 }
