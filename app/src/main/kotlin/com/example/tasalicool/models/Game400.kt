@@ -9,7 +9,6 @@ object Game400Rules {
     const val MAX_PLAYERS = 4
 }
 
-// نموذج جولة اللعبة
 data class Game400Round(
     val players: List<Player>,
     val deck: Deck = Deck(),
@@ -24,13 +23,17 @@ data class Game400Round(
         if (initialized) return
         initialized = true
 
-        // توزيع الأوراق
+        deck.shuffle()
+
         players.forEach { player ->
+            player.clearHand()
             player.addCards(deck.drawCards(Game400Rules.CARDS_PER_HAND))
         }
 
-        // أول ورقة في الرمي
         deck.drawCard()?.let { discardPile.add(it) }
+
+        currentPlayerIndex = 0
+        roundInProgress = true
     }
 
     fun getCurrentPlayer(): Player = players[currentPlayerIndex]
@@ -45,57 +48,88 @@ data class Game400Round(
     }
 
     fun playCard(card: Card): Boolean {
+
+        if (!roundInProgress) return false
+
         val player = getCurrentPlayer()
 
         if (!canPlay(card)) return false
 
-        return if (player.removeCard(card)) {
-            discardPile.add(card)
-            nextTurn()
-            true
+        val removed = player.removeCard(card)
+        if (!removed) return false
+
+        discardPile.add(card)
+
+        // ✅ فحص انتهاء الجولة
+        if (player.hand.isEmpty()) {
+            endRound(winner = player)
         } else {
-            false
+            nextTurn()
         }
+
+        return true
     }
 
-    fun drawFromDeck(player: Player) {
-        if (deck.isEmpty()) return
+    fun drawFromDeck() {
+
+        if (!roundInProgress) return
+
+        if (deck.isEmpty()) {
+            reshuffleDiscardIntoDeck()
+        }
+
+        val player = getCurrentPlayer()
         deck.drawCard()?.let { player.addCards(listOf(it)) }
     }
 
-    fun calculateRoundScores(): Map<Player, Int> {
-        val scores = mutableMapOf<Player, Int>()
+    private fun reshuffleDiscardIntoDeck() {
 
+        if (discardPile.size <= 1) return
+
+        val lastCard = discardPile.last()
+        val cardsToReshuffle = discardPile.dropLast(1)
+
+        discardPile.clear()
+        discardPile.add(lastCard)
+
+        deck.addCards(cardsToReshuffle)
+        deck.shuffle()
+    }
+
+    private fun endRound(winner: Player) {
+
+        roundInProgress = false
+
+        // حساب نقاط الخاسرين
         players.forEach { player ->
-            var score = 0
-            player.hand.forEach { card ->
-                score += when (card.rank) {
-                    Rank.ACE -> 1
-                    Rank.TEN, Rank.JACK, Rank.QUEEN, Rank.KING -> 10
-                    else -> card.rank.value
-                }
+            if (player != winner) {
+                val penalty = calculateHandValue(player)
+                player.score += penalty
             }
-            scores[player] = score
+        }
+    }
+
+    private fun calculateHandValue(player: Player): Int {
+        var score = 0
+
+        player.hand.forEach { card ->
+            score += when (card.rank) {
+                Rank.ACE -> 1
+                Rank.TEN, Rank.JACK, Rank.QUEEN, Rank.KING -> 10
+                else -> card.rank.value
+            }
         }
 
-        return scores
+        return score
     }
 
-    fun isRoundOver(): Boolean {
-        return players.any { it.hand.isEmpty() } || deck.isEmpty()
-    }
-}
-
-// حالة لعبة 400
-data class Game400State(
-    val players: List<Player>,
-    val round: Game400Round,
-    val scores: Map<String, Int> = emptyMap(),
-    val gameOver: Boolean = false,
-    val winner: Player? = null
-) : Serializable {
+    fun isRoundOver(): Boolean = !roundInProgress
 
     fun isGameOver(): Boolean {
-        return players.any { (scores[it.id] ?: 0) >= Game400Rules.TARGET_SCORE }
+        return players.any { it.score >= Game400Rules.TARGET_SCORE }
+    }
+
+    fun getWinner(): Player? {
+        return players.find { it.score >= Game400Rules.TARGET_SCORE }
     }
 }
