@@ -24,20 +24,24 @@ enum class Rank(val displayName: String, val value: Int) {
     KING("K", 13)
 }
 
-// نموذج الورقة الواحدة
+// نموذج الورقة
 data class Card(
     val suit: Suit,
     val rank: Rank
 ) : Serializable {
-    override fun toString(): String = "${rank.displayName}${suit.name.first()}"
-    
-    fun getResourceName(): String = "${rank.displayName.lowercase()}_of_${suit.name.lowercase()}"
+
+    override fun toString(): String =
+        "${rank.displayName}${suit.name.first()}"
+
+    fun getResourceName(): String =
+        "${rank.displayName.lowercase()}_of_${suit.name.lowercase()}"
 }
 
-// نموذج الدك (مجموعة الأوراق)
+// نموذج الدك
 data class Deck(
     val cards: MutableList<Card> = mutableListOf()
 ) {
+
     init {
         if (cards.isEmpty()) {
             Suit.values().forEach { suit ->
@@ -53,7 +57,8 @@ data class Deck(
         cards.shuffle()
     }
 
-    fun drawCard(): Card? = if (cards.isNotEmpty()) cards.removeAt(0) else null
+    fun drawCard(): Card? =
+        if (cards.isNotEmpty()) cards.removeAt(0) else null
 
     fun drawCards(count: Int): List<Card> {
         val drawn = mutableListOf<Card>()
@@ -63,9 +68,9 @@ data class Deck(
         return drawn
     }
 
-    fun size() = cards.size
+    fun size(): Int = cards.size
 
-    fun isEmpty() = cards.isEmpty()
+    fun isEmpty(): Boolean = cards.isEmpty()
 }
 
 // نموذج اللاعب
@@ -73,35 +78,43 @@ data class Player(
     val id: String,
     val name: String,
     val hand: MutableList<Card> = mutableListOf(),
-    val score: Int = 0,
+    var score: Int = 0,
     val isLocal: Boolean = true
 ) : Serializable {
+
     fun addCards(cards: List<Card>) {
         hand.addAll(cards)
     }
 
-    fun removeCard(card: Card): Boolean = hand.remove(card)
+    fun removeCard(card: Card): Boolean =
+        hand.remove(card)
 
-    fun hasCard(card: Card): Boolean = hand.contains(card)
+    fun hasCard(card: Card): Boolean =
+        hand.contains(card)
 
-    fun handSize(): Int = hand.size
+    fun handSize(): Int =
+        hand.size
+
+    fun clearHand() {
+        hand.clear()
+    }
 }
 
-// نموذج حالة اللعبة
+// نموذج حالة اللعبة العامة
 data class GameState(
     val gameType: GameType,
     val players: List<Player>,
-    val currentPlayerIndex: Int = 0,
+    var currentPlayerIndex: Int = 0,
     val deck: Deck = Deck(),
     val discardPile: MutableList<Card> = mutableListOf(),
-    val gameInProgress: Boolean = true,
-    val winner: Player? = null
+    var gameInProgress: Boolean = true,
+    var winner: Player? = null
 ) : Serializable
 
 // أنواع الألعاب
 enum class GameType {
-    GAME_400,      // لعبة 400
-    SOLITAIRE,     // اللعبة الفردية
-    HAND,          // لعبة اليد
-    MULTIPLAYER    // لعبة متعددة اللاعبين
+    GAME_400,
+    SOLITAIRE,
+    HAND,
+    MULTIPLAYER
 }
