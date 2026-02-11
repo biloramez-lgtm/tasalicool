@@ -1,5 +1,7 @@
 package com.example.tasalicool.models
 
+import com.example.tasalicool.network.GameAction
+import com.example.tasalicool.network.NetworkMessage
 import com.google.gson.Gson
 import java.io.Serializable
 
@@ -31,16 +33,14 @@ data class GameState(
     }
 
     /* ===================================================== */
-    /* ================= START GAME (HOST ONLY) ============ */
+    /* ================= START GAME (HOST) ================= */
     /* ===================================================== */
 
-    /**
-     * يستخدم فقط من الـ HOST
-     * يبدأ اللعبة ويعيد JSON جاهز للإرسال
-     */
-    fun startGameAndCreatePayload(cardsPerPlayer: Int = 5): String {
+    fun startGameAsHost(cardsPerPlayer: Int = 5): NetworkMessage {
 
-        if (players.isEmpty()) return ""
+        if (players.isEmpty()) {
+            return createMessage(GameAction.MESSAGE, "No players")
+        }
 
         roundNumber = 1
         currentPlayerIndex = 0
@@ -57,16 +57,14 @@ data class GameState(
 
         dealCards(cardsPerPlayer)
 
-        return createNetworkPayload()
+        return createStateUpdateMessage()
     }
 
     /* ===================================================== */
     /* ================= NEW ROUND (HOST) ================== */
     /* ===================================================== */
 
-    fun startNewRoundAndCreatePayload(
-        cardsPerPlayer: Int = 5
-    ): String {
+    fun startNewRoundAsHost(cardsPerPlayer: Int = 5): NetworkMessage {
 
         roundNumber++
         currentTrick.clear()
@@ -80,17 +78,17 @@ data class GameState(
 
         currentPlayerIndex = 0
 
-        return createNetworkPayload()
+        return createStateUpdateMessage()
     }
 
     /* ===================================================== */
     /* ================= PLAY CARD (HOST) ================== */
     /* ===================================================== */
 
-    fun playCardAndCreatePayload(
+    fun playCardAsHost(
         playerId: String,
         card: Card
-    ): String? {
+    ): NetworkMessage? {
 
         val player = players.find { it.id == playerId }
             ?: return null
@@ -108,17 +106,32 @@ data class GameState(
             nextPlayer()
         }
 
-        return createNetworkPayload()
+        return createStateUpdateMessage()
     }
 
     /* ===================================================== */
-    /* ================= APPLY FULL STATE (CLIENT) ========= */
+    /* ================= APPLY NETWORK MESSAGE ============= */
     /* ===================================================== */
 
-    /**
-     * يستخدم في الأجهزة CLIENT
-     */
-    fun applyFullNetworkState(json: String) {
+    fun applyNetworkMessage(message: NetworkMessage) {
+
+        when (message.action) {
+
+            GameAction.UPDATE_GAME_STATE,
+            GameAction.SYNC_STATE -> {
+
+                message.data?.let { json ->
+                    applyFullNetworkState(json)
+                }
+            }
+
+            else -> {
+                // يمكن إضافة أنواع أخرى لاحقاً
+            }
+        }
+    }
+
+    private fun applyFullNetworkState(json: String) {
 
         val networkState =
             gson.fromJson(json, GameState::class.java)
@@ -131,7 +144,6 @@ data class GameState(
         currentTrick.clear()
         currentTrick.addAll(networkState.currentTrick)
 
-        // تحديث اللاعبين
         networkState.players.forEach { netPlayer ->
 
             val localPlayer =
@@ -173,10 +185,6 @@ data class GameState(
         }
     }
 
-    /* ===================================================== */
-    /* ================= ROUND FINISH ====================== */
-    /* ===================================================== */
-
     private fun finishRound() {
 
         players.forEach {
@@ -186,10 +194,6 @@ data class GameState(
         checkGameWinner()
     }
 
-    /* ===================================================== */
-    /* ================= DEAL CARDS ======================== */
-    /* ===================================================== */
-
     private fun dealCards(cardsPerPlayer: Int = 5) {
 
         players.forEach { player ->
@@ -198,31 +202,18 @@ data class GameState(
         }
     }
 
-    /* ===================================================== */
-    /* ================= ROUND STATUS ====================== */
-    /* ===================================================== */
-
     fun isRoundFinished(): Boolean {
         if (players.isEmpty()) return true
         return players.all { it.hand.isEmpty() }
     }
 
-    /* ===================================================== */
-    /* ================= TEAM SCORES ======================= */
-    /* ===================================================== */
-
     fun getTeamScores(): Map<Int, Int> {
-
         return players
             .groupBy { it.teamId }
             .mapValues { entry ->
                 entry.value.sumOf { it.score }
             }
     }
-
-    /* ===================================================== */
-    /* ================= GAME END ========================== */
-    /* ===================================================== */
 
     private fun checkGameWinner(maxScore: Int = 400) {
 
@@ -248,20 +239,30 @@ data class GameState(
     }
 
     /* ===================================================== */
-    /* ================= NETWORK PAYLOAD =================== */
+    /* ================= MESSAGE HELPERS =================== */
     /* ===================================================== */
 
-    /**
-     * ينشئ نسخة آمنة للشبكة (بدون Deck)
-     */
-    private fun createNetworkPayload(): String {
-        val safeState = toNetworkSafeCopy()
-        return gson.toJson(safeState)
+    private fun createStateUpdateMessage(): NetworkMessage {
+        return NetworkMessage(
+            playerId = "HOST",
+            gameType = "TASALI",
+            action = GameAction.UPDATE_GAME_STATE,
+            data = gson.toJson(toNetworkSafeCopy())
+        )
     }
 
-    /**
-     * Host فقط يحتفظ بالـ deck الحقيقي
-     */
+    private fun createMessage(
+        action: GameAction,
+        text: String
+    ): NetworkMessage {
+        return NetworkMessage(
+            playerId = "HOST",
+            gameType = "TASALI",
+            action = action,
+            data = text
+        )
+    }
+
     fun toNetworkSafeCopy(): GameState {
 
         val safePlayers =
