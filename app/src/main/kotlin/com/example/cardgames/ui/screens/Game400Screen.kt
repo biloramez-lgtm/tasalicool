@@ -1,4 +1,4 @@
-package com.example.cardgames.ui.screens
+package com.example.tasalicool.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,14 +28,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.example.cardgames.models.Card
-import com.example.cardgames.models.Deck
-import com.example.cardgames.models.Game400Round
-import com.example.cardgames.models.GameType
-import com.example.cardgames.models.Player
-import com.example.cardgames.ui.components.CardView
-import com.example.cardgames.ui.components.CardBackView
-import com.example.cardgames.ui.components.CompactCardView
+import com.example.tasalicool.models.Card
+import com.example.tasalicool.models.Deck
+import com.example.tasalicool.models.Game400Round
+import com.example.tasalicool.models.GameType
+import com.example.tasalicool.models.Player
+import com.example.tasalicool.ui.components.CardView
+import com.example.tasalicool.ui.components.CardBackView
+import com.example.tasalicool.ui.components.CompactCardView
 
 @Composable
 fun Game400Screen(navController: NavHostController) {
