@@ -25,12 +25,43 @@ class Game400Engine(
     var gameWinner: Player? = null
 
     /* =====================================================
+       🧠 ذاكرة الأوراق الملعوبة
+       ===================================================== */
+
+    private val playedCards: MutableList<Card> = mutableListOf()
+
+    private val remainingCardsBySuit: MutableMap<Suit, MutableList<Card>> =
+        mutableMapOf()
+
+    private fun initializeMemory() {
+        playedCards.clear()
+        remainingCardsBySuit.clear()
+
+        Suit.values().forEach { suit ->
+            remainingCardsBySuit[suit] =
+                Rank.values().map { Card(suit, it) }.toMutableList()
+        }
+    }
+
+    private fun registerPlayedCard(card: Card) {
+        playedCards.add(card)
+        remainingCardsBySuit[card.suit]?.removeIf {
+            it.rank == card.rank
+        }
+    }
+
+    fun getRemainingCardsOfSuit(suit: Suit): List<Card> {
+        return remainingCardsBySuit[suit] ?: emptyList()
+    }
+
+    /* =====================================================
        بدء جولة جديدة
        ===================================================== */
 
     fun startNewRound() {
 
         deck.reset()
+        initializeMemory()
 
         players.forEach {
             it.resetForNewRound()
@@ -45,9 +76,7 @@ class Game400Engine(
         currentTrick.clear()
     }
 
-    /* =====================================================
-       اللاعب الحالي
-       ===================================================== */
+    /* ===================================================== */
 
     fun getCurrentPlayer(): Player = players[currentPlayerIndex]
 
@@ -71,19 +100,22 @@ class Game400Engine(
 
         var score = 0.0
 
-        val trumpCount = player.hand.count { it.suit == Game400Constants.TRUMP_SUIT }
-        val highCards = player.hand.count { it.rank.value >= 11 }
+        val trumpCount =
+            player.hand.count { it.suit == Game400Constants.TRUMP_SUIT }
+
+        val highCards =
+            player.hand.count { it.rank.value >= 11 }
 
         score += trumpCount * 2.8
         score += highCards * 1.4
 
         player.hand.forEach {
-            if (it.suit == Game400Constants.TRUMP_SUIT && it.rank == Rank.ACE)
-                score += 2
+            if (it.suit == Game400Constants.TRUMP_SUIT &&
+                it.rank == Rank.ACE
+            ) score += 2
         }
 
         var bid = (score / 3).toInt()
-
         bid = max(2, bid)
         bid = min(13, bid)
 
@@ -102,6 +134,9 @@ class Game400Engine(
 
         player.removeCard(card)
         currentTrick.add(player to card)
+
+        // 🔥 تسجيل في الذاكرة
+        registerPlayedCard(card)
 
         if (currentTrick.size == 4) {
             finishTrick()
@@ -123,7 +158,7 @@ class Game400Engine(
     }
 
     /* =====================================================
-       🤖 AI احترافي جداً
+       🤖 AI بذاكرة فعلية
        ===================================================== */
 
     fun playAITurnIfNeeded() {
@@ -142,19 +177,23 @@ class Game400Engine(
     private fun chooseProfessionalCard(player: Player): Card {
 
         val validCards = player.hand.filter { isValidPlay(player, it) }
-
         val leadSuit = currentTrick.firstOrNull()?.second?.suit
 
-        // 🎯 إذا يبدأ الأكلة
+        // إذا يبدأ الأكلة
         if (leadSuit == null) {
 
-            // إذا فريقه محتاج أكلات → يهاجم
-            if (player.tricksWon < player.bid) {
+            // إذا بقي طرنيب قوي عند الخصوم → لا تحرق الآص
+            val remainingTrumps =
+                getRemainingCardsOfSuit(Game400Constants.TRUMP_SUIT)
+
+            val opponentStrongTrumpExists =
+                remainingTrumps.any { it.rank.value >= 13 }
+
+            if (!opponentStrongTrumpExists) {
                 return validCards.maxBy { it.rank.value }
             }
 
-            // إذا غطى طلبه → يلعب ورقة متوسطة
-            return validCards.sortedBy { it.rank.value }[validCards.size / 2]
+            return validCards.minBy { it.rank.value }
         }
 
         val sameSuit = validCards.filter { it.suit == leadSuit }
@@ -173,34 +212,31 @@ class Game400Engine(
             return winningCard ?: sameSuit.minBy { it.rank.value }
         }
 
-        // ما عنده نفس النوع → يفحص طرنيب
-        val trumps = validCards.filter { it.suit == Game400Constants.TRUMP_SUIT }
+        val trumps = validCards
+            .filter { it.suit == Game400Constants.TRUMP_SUIT }
 
         if (trumps.isNotEmpty()) {
 
-            val highestTrump = currentTrick
-                .filter { it.second.suit == Game400Constants.TRUMP_SUIT }
-                .maxByOrNull { it.second.rank.value }
-                ?.second
+            val remainingTrumps =
+                getRemainingCardsOfSuit(Game400Constants.TRUMP_SUIT)
 
-            if (highestTrump == null) {
-                return trumps.minBy { it.rank.value }
-            }
+            val strongestRemaining =
+                remainingTrumps.maxByOrNull { it.rank.value }
 
-            val winningTrump = trumps
-                .filter { it.rank.value > highestTrump.rank.value }
+            val safeTrump = trumps
+                .filter {
+                    strongestRemaining == null ||
+                            it.rank.value >= strongestRemaining.rank.value
+                }
                 .minByOrNull { it.rank.value }
 
-            return winningTrump ?: validCards.minBy { it.rank.value }
+            return safeTrump ?: trumps.minBy { it.rank.value }
         }
 
-        // ما عنده شيء → يرمي أضعف ورقة
         return validCards.minBy { it.rank.value }
     }
 
-    /* =====================================================
-       إنهاء الأكلة
-       ===================================================== */
+    /* ===================================================== */
 
     private fun finishTrick() {
 
@@ -234,9 +270,7 @@ class Game400Engine(
         }
     }
 
-    /* =====================================================
-       نهاية الجولة
-       ===================================================== */
+    /* ===================================================== */
 
     private fun finishRound() {
 
