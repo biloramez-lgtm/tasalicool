@@ -10,22 +10,21 @@ data class GameState(
 
     val deck: Deck = Deck(),
 
-    val currentTrick: MutableList<Pair<Player, Card>> = mutableListOf(),
+    val currentTrick: MutableList<Pair<String, Card>> = mutableListOf(),
+    // نخزن playerId بدل Player object لتفادي مشاكل الشبكة
 
     var roundNumber: Int = 1,
 
     var gameInProgress: Boolean = true,
 
-    var winner: Player? = null
+    var winnerId: String? = null
 
 ) : Serializable {
 
     /* ================= CURRENT PLAYER ================= */
 
     fun getCurrentPlayer(): Player? =
-        if (players.isNotEmpty())
-            players[currentPlayerIndex]
-        else null
+        players.getOrNull(currentPlayerIndex)
 
     fun nextPlayer() {
         if (players.isEmpty()) return
@@ -55,35 +54,43 @@ data class GameState(
 
     /* ================= PLAY CARD ================= */
 
-    fun playCard(player: Player, card: Card) {
+    fun playCard(player: Player, card: Card): Boolean {
 
-        if (player != getCurrentPlayer()) return
-        if (!player.hand.contains(card)) return
+        if (!gameInProgress) return false
+        if (player != getCurrentPlayer()) return false
+        if (!player.hand.contains(card)) return false
 
         player.removeCard(card)
 
-        currentTrick.add(player to card)
+        currentTrick.add(player.id to card)
 
         if (currentTrick.size == players.size) {
             evaluateTrick()
         } else {
             nextPlayer()
         }
+
+        return true
     }
 
     /* ================= TRICK EVALUATION ================= */
 
     private fun evaluateTrick() {
 
-        // استخدام strength وليس value
         val winningPair =
             currentTrick.maxByOrNull { it.second.strength() }
 
-        winningPair?.first?.incrementTrick()
+        winningPair?.let { pair ->
 
-        // اللاعب الفائز يبدأ الجولة التالية
-        winningPair?.first?.let {
-            currentPlayerIndex = players.indexOf(it)
+            val winnerPlayer =
+                players.find { it.id == pair.first }
+
+            winnerPlayer?.incrementTrick()
+
+            // الفائز يبدأ الجولة التالية
+            winnerPlayer?.let {
+                currentPlayerIndex = players.indexOf(it)
+            }
         }
 
         currentTrick.clear()
@@ -109,11 +116,8 @@ data class GameState(
     fun dealCards(cardsPerPlayer: Int = 5) {
 
         players.forEach { player ->
-            repeat(cardsPerPlayer) {
-                deck.drawCard()?.let { card ->
-                    player.hand.add(card)
-                }
-            }
+            val drawn = deck.drawCards(cardsPerPlayer)
+            player.addCards(drawn)
         }
     }
 
@@ -133,7 +137,7 @@ data class GameState(
     fun checkGameWinner(maxScore: Int = 400) {
 
         players.find { it.score >= maxScore }?.let {
-            winner = it
+            winnerId = it.id
             gameInProgress = false
         }
     }
@@ -147,9 +151,46 @@ data class GameState(
 
         currentPlayerIndex = 0
         roundNumber = 1
-        winner = null
+        winnerId = null
         gameInProgress = true
         currentTrick.clear()
         deck.reset()
+    }
+
+    /* ================= NETWORK SAFE COPY ================= */
+
+    /**
+     * نسخة آمنة للشبكة (لا ترسل أوراق اللاعبين)
+     */
+    fun toNetworkSafeCopy(): GameState {
+
+        val safePlayers =
+            players.map { it.toNetworkSafeCopy() }
+                .toMutableList()
+
+        return copy(
+            players = safePlayers,
+            deck = Deck(mutableListOf()), // لا نرسل deck
+        )
+    }
+
+    /**
+     * تحديث الحالة من نسخة شبكة
+     */
+    fun updateFromNetwork(networkState: GameState) {
+
+        currentPlayerIndex = networkState.currentPlayerIndex
+        roundNumber = networkState.roundNumber
+        gameInProgress = networkState.gameInProgress
+        winnerId = networkState.winnerId
+
+        // تحديث اللاعبين
+        networkState.players.forEach { netPlayer ->
+            players.find { it.id == netPlayer.id }
+                ?.updateFromNetwork(netPlayer)
+        }
+
+        currentTrick.clear()
+        currentTrick.addAll(networkState.currentTrick)
     }
 }
