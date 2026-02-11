@@ -2,18 +2,20 @@ package com.example.tasalicool.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,7 +23,7 @@ import com.example.tasalicool.models.Card
 import com.example.tasalicool.models.Suit
 
 /* =========================================================
-   🎴 MAIN CARD VIEW – ELITE VERSION
+   🎴 MAIN CARD VIEW – PRO COMPETITIVE VERSION
    ========================================================= */
 
 @Composable
@@ -29,51 +31,66 @@ fun CardView(
     card: Card,
     modifier: Modifier = Modifier,
     isSelected: Boolean = false,
+    enabled: Boolean = true,
     onClick: (() -> Unit)? = null
 ) {
 
-    val cardColor = remember(card.suit) {
-        when (card.suit) {
-            Suit.HEARTS, Suit.DIAMONDS -> Color.Red
-            Suit.CLUBS, Suit.SPADES -> Color.Black
-        }
+    val interactionSource = remember { MutableInteractionSource() }
+
+    val cardColor = when (card.suit) {
+        Suit.HEARTS, Suit.DIAMONDS -> Color(0xFFD32F2F)
+        Suit.CLUBS, Suit.SPADES -> Color(0xFF212121)
     }
 
-    val suitSymbol = remember(card.suit) {
-        when (card.suit) {
-            Suit.HEARTS -> "♥"
-            Suit.DIAMONDS -> "♦"
-            Suit.CLUBS -> "♣"
-            Suit.SPADES -> "♠"
-        }
+    val suitSymbol = when (card.suit) {
+        Suit.HEARTS -> "♥"
+        Suit.DIAMONDS -> "♦"
+        Suit.CLUBS -> "♣"
+        Suit.SPADES -> "♠"
     }
 
     val backgroundColor by animateColorAsState(
-        if (isSelected) Color(0xFFFFF3C4) else Color.White,
+        if (isSelected) Color(0xFFFFF8E1) else Color.White,
         label = "card_bg"
+    )
+
+    val elevation by animateDpAsState(
+        if (isSelected) 14.dp else 6.dp,
+        label = "card_elevation"
+    )
+
+    val scale by animateFloatAsState(
+        if (isSelected) 1.07f else 1f,
+        label = "card_scale"
     )
 
     val borderWidth by animateDpAsState(
         if (isSelected) 3.dp else 1.dp,
-        label = "card_border"
-    )
-
-    val elevation by animateDpAsState(
-        if (isSelected) 10.dp else 4.dp,
-        label = "card_elevation"
+        label = "border_anim"
     )
 
     Box(
         modifier = modifier
-            .size(width = 80.dp, height = 120.dp)
-            .shadow(elevation, RoundedCornerShape(10.dp))
-            .background(backgroundColor, RoundedCornerShape(10.dp))
+            .size(80.dp, 120.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                translationY = if (isSelected) -12f else 0f
+            }
+            .shadow(elevation, RoundedCornerShape(12.dp))
+            .background(backgroundColor, RoundedCornerShape(12.dp))
             .border(
                 borderWidth,
-                if (isSelected) Color(0xFFFFC107) else Color.Gray,
-                RoundedCornerShape(10.dp)
+                if (isSelected) Color(0xFFFFA000) else Color(0xFFBDBDBD),
+                RoundedCornerShape(12.dp)
             )
-            .clickable(enabled = onClick != null) { onClick?.invoke() }
+            .clickable(
+                enabled = enabled && onClick != null,
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                onClick?.invoke()
+            }
             .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -88,8 +105,9 @@ fun CardView(
 
             Text(
                 text = suitSymbol,
-                fontSize = 30.sp,
-                color = cardColor
+                fontSize = 32.sp,
+                color = cardColor,
+                fontWeight = FontWeight.Bold
             )
 
             CornerContent(suitSymbol, card.rank.displayName, cardColor)
@@ -105,9 +123,7 @@ private fun CornerContent(
     bottom: String,
     color: Color
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = top,
             fontSize = 14.sp,
@@ -123,7 +139,7 @@ private fun CornerContent(
 }
 
 /* =========================================================
-   🎴 CARD BACK
+   🎴 CARD BACK – PRO VERSION
    ========================================================= */
 
 @Composable
@@ -132,19 +148,19 @@ fun CardBackView(
 ) {
     Box(
         modifier = modifier
-            .size(width = 80.dp, height = 120.dp)
-            .shadow(6.dp, RoundedCornerShape(10.dp))
-            .background(Color(0xFF1565C0), RoundedCornerShape(10.dp))
+            .size(80.dp, 120.dp)
+            .shadow(8.dp, RoundedCornerShape(12.dp))
+            .background(Color(0xFF1A237E), RoundedCornerShape(12.dp))
             .border(
-                1.dp,
+                2.dp,
                 Color(0xFF0D47A1),
-                RoundedCornerShape(10.dp)
+                RoundedCornerShape(12.dp)
             ),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = "♠♥♦♣",
-            fontSize = 22.sp,
+            fontSize = 24.sp,
             color = Color.White,
             fontWeight = FontWeight.Bold
         )
@@ -152,7 +168,7 @@ fun CardBackView(
 }
 
 /* =========================================================
-   🎴 COMPACT CARD – PLAYER HAND
+   🎴 COMPACT CARD – PLAYER HAND PRO VERSION
    ========================================================= */
 
 @Composable
@@ -160,44 +176,53 @@ fun CompactCardView(
     card: Card,
     modifier: Modifier = Modifier,
     isSelected: Boolean = false,
+    enabled: Boolean = true,
     onClick: (() -> Unit)? = null
 ) {
 
-    val cardColor = remember(card.suit) {
-        when (card.suit) {
-            Suit.HEARTS, Suit.DIAMONDS -> Color.Red
-            Suit.CLUBS, Suit.SPADES -> Color.Black
-        }
+    val cardColor = when (card.suit) {
+        Suit.HEARTS, Suit.DIAMONDS -> Color(0xFFD32F2F)
+        Suit.CLUBS, Suit.SPADES -> Color(0xFF212121)
     }
 
-    val suitSymbol = remember(card.suit) {
-        when (card.suit) {
-            Suit.HEARTS -> "♥"
-            Suit.DIAMONDS -> "♦"
-            Suit.CLUBS -> "♣"
-            Suit.SPADES -> "♠"
-        }
+    val suitSymbol = when (card.suit) {
+        Suit.HEARTS -> "♥"
+        Suit.DIAMONDS -> "♦"
+        Suit.CLUBS -> "♣"
+        Suit.SPADES -> "♠"
     }
 
     val elevation by animateDpAsState(
-        if (isSelected) 8.dp else 2.dp,
+        if (isSelected) 10.dp else 3.dp,
         label = "compact_elevation"
+    )
+
+    val scale by animateFloatAsState(
+        if (isSelected) 1.05f else 1f,
+        label = "compact_scale"
     )
 
     Box(
         modifier = modifier
-            .size(width = 55.dp, height = 75.dp)
-            .shadow(elevation, RoundedCornerShape(6.dp))
+            .size(55.dp, 75.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                translationY = if (isSelected) -8f else 0f
+            }
+            .shadow(elevation, RoundedCornerShape(8.dp))
             .background(
-                if (isSelected) Color(0xFFFFF3C4) else Color.White,
-                RoundedCornerShape(6.dp)
+                if (isSelected) Color(0xFFFFF8E1) else Color.White,
+                RoundedCornerShape(8.dp)
             )
             .border(
                 if (isSelected) 2.dp else 1.dp,
-                if (isSelected) Color(0xFFFFC107) else Color.Gray,
-                RoundedCornerShape(6.dp)
+                if (isSelected) Color(0xFFFFA000) else Color(0xFFBDBDBD),
+                RoundedCornerShape(8.dp)
             )
-            .clickable(enabled = onClick != null) { onClick?.invoke() }
+            .clickable(enabled = enabled && onClick != null) {
+                onClick?.invoke()
+            }
             .padding(4.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -210,7 +235,7 @@ fun CompactCardView(
             )
             Text(
                 text = suitSymbol,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
                 color = cardColor
             )
         }
