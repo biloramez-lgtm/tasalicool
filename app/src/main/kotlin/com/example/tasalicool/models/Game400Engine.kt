@@ -24,39 +24,48 @@ class Game400Engine(
     var roundActive = false
     var gameWinner: Player? = null
 
-    /* =====================================================
-       🧠 ذاكرة الأوراق الملعوبة
-       ===================================================== */
+    /* ================================
+       🧠 ذاكرة احترافية
+       ================================ */
 
-    private val playedCards: MutableList<Card> = mutableListOf()
+    private val playedCards = mutableListOf<Card>()
 
-    private val remainingCardsBySuit: MutableMap<Suit, MutableList<Card>> =
+    // اللاعب → الأنواع التي لا يملكها
+    private val knownVoidSuits: MutableMap<Player, MutableSet<Suit>> =
         mutableMapOf()
 
     private fun initializeMemory() {
         playedCards.clear()
-        remainingCardsBySuit.clear()
-
-        Suit.values().forEach { suit ->
-            remainingCardsBySuit[suit] =
-                Rank.values().map { Card(suit, it) }.toMutableList()
+        knownVoidSuits.clear()
+        players.forEach {
+            knownVoidSuits[it] = mutableSetOf()
         }
     }
 
-    private fun registerPlayedCard(card: Card) {
+    private fun registerPlayedCard(player: Player, card: Card) {
+
         playedCards.add(card)
-        remainingCardsBySuit[card.suit]?.removeIf {
-            it.rank == card.rank
+
+        // إذا لم يلعب من النوع المطلوب → لا يملك هذا النوع
+        if (currentTrick.isNotEmpty()) {
+
+            val leadSuit = currentTrick.first().second.suit
+
+            if (card.suit != leadSuit &&
+                player.hand.none { it.suit == leadSuit }
+            ) {
+                knownVoidSuits[player]?.add(leadSuit)
+            }
         }
     }
 
-    fun getRemainingCardsOfSuit(suit: Suit): List<Card> {
-        return remainingCardsBySuit[suit] ?: emptyList()
+    private fun playerHasNoSuit(player: Player, suit: Suit): Boolean {
+        return knownVoidSuits[player]?.contains(suit) == true
     }
 
-    /* =====================================================
+    /* ================================
        بدء جولة جديدة
-       ===================================================== */
+       ================================ */
 
     fun startNewRound() {
 
@@ -76,17 +85,15 @@ class Game400Engine(
         currentTrick.clear()
     }
 
-    /* ===================================================== */
-
     fun getCurrentPlayer(): Player = players[currentPlayerIndex]
 
     fun nextPlayer() {
         currentPlayerIndex = (currentPlayerIndex + 1) % players.size
     }
 
-    /* =====================================================
+    /* ================================
        🤖 Bid احترافي
-       ===================================================== */
+       ================================ */
 
     private fun calculateAdvancedAIBids() {
         players.forEach { player ->
@@ -109,12 +116,6 @@ class Game400Engine(
         score += trumpCount * 2.8
         score += highCards * 1.4
 
-        player.hand.forEach {
-            if (it.suit == Game400Constants.TRUMP_SUIT &&
-                it.rank == Rank.ACE
-            ) score += 2
-        }
-
         var bid = (score / 3).toInt()
         bid = max(2, bid)
         bid = min(13, bid)
@@ -122,9 +123,9 @@ class Game400Engine(
         return bid
     }
 
-    /* =====================================================
-       اللعب داخل الأكلة
-       ===================================================== */
+    /* ================================
+       اللعب
+       ================================ */
 
     fun playCard(player: Player, card: Card): Boolean {
 
@@ -133,10 +134,11 @@ class Game400Engine(
         if (!isValidPlay(player, card)) return false
 
         player.removeCard(card)
-        currentTrick.add(player to card)
 
-        // 🔥 تسجيل في الذاكرة
-        registerPlayedCard(card)
+        // 🔥 نسجل قبل الإضافة
+        registerPlayedCard(player, card)
+
+        currentTrick.add(player to card)
 
         if (currentTrick.size == 4) {
             finishTrick()
@@ -157,9 +159,9 @@ class Game400Engine(
         return if (hasLeadSuit) card.suit == leadSuit else true
     }
 
-    /* =====================================================
-       🤖 AI بذاكرة فعلية
-       ===================================================== */
+    /* ================================
+       🤖 AI تحليلي احترافي
+       ================================ */
 
     fun playAITurnIfNeeded() {
 
@@ -179,64 +181,112 @@ class Game400Engine(
         val validCards = player.hand.filter { isValidPlay(player, it) }
         val leadSuit = currentTrick.firstOrNull()?.second?.suit
 
+        val partner = players.first {
+            it.teamId == player.teamId && it != player
+        }
+
+        // ==========================
         // إذا يبدأ الأكلة
+        // ==========================
+
         if (leadSuit == null) {
 
-            // إذا بقي طرنيب قوي عند الخصوم → لا تحرق الآص
-            val remainingTrumps =
-                getRemainingCardsOfSuit(Game400Constants.TRUMP_SUIT)
+            // إذا خصم لا يملك نوع معين → اضربه بهذا النوع
+            Suit.values().forEach { suit ->
+                val enemyVoid = players
+                    .filter { it.teamId != player.teamId }
+                    .any { playerHasNoSuit(it, suit) }
 
-            val opponentStrongTrumpExists =
-                remainingTrumps.any { it.rank.value >= 13 }
+                if (enemyVoid) {
+                    val attackCard =
+                        validCards
+                            .filter { it.suit == suit }
+                            .maxByOrNull { it.rank.value }
 
-            if (!opponentStrongTrumpExists) {
-                return validCards.maxBy { it.rank.value }
+                    if (attackCard != null)
+                        return attackCard
+                }
             }
 
-            return validCards.minBy { it.rank.value }
+            return validCards.maxBy { it.rank.value }
         }
+
+        // ==========================
+        // إذا هناك نوع مطلوب
+        // ==========================
 
         val sameSuit = validCards.filter { it.suit == leadSuit }
 
         if (sameSuit.isNotEmpty()) {
 
-            val highestOnTable = currentTrick
-                .filter { it.second.suit == leadSuit }
-                .maxBy { it.second.rank.value }
-                .second
+            val highestOnTable =
+                currentTrick
+                    .filter { it.second.suit == leadSuit }
+                    .maxBy { it.second.rank.value }
 
-            val winningCard = sameSuit
-                .filter { it.rank.value > highestOnTable.rank.value }
-                .minByOrNull { it.rank.value }
+            val currentWinner = highestOnTable.first
+
+            // 🔥 إذا الشريك غالب → لا تحرق ورقة قوية
+            if (currentWinner.teamId == player.teamId) {
+                return sameSuit.minBy { it.rank.value }
+            }
+
+            val winningCard =
+                sameSuit
+                    .filter {
+                        it.rank.value >
+                                highestOnTable.second.rank.value
+                    }
+                    .minByOrNull { it.rank.value }
 
             return winningCard ?: sameSuit.minBy { it.rank.value }
         }
 
-        val trumps = validCards
-            .filter { it.suit == Game400Constants.TRUMP_SUIT }
+        // ==========================
+        // لا يملك النوع → يفحص طرنيب
+        // ==========================
+
+        val trumps =
+            validCards.filter {
+                it.suit == Game400Constants.TRUMP_SUIT
+            }
 
         if (trumps.isNotEmpty()) {
 
-            val remainingTrumps =
-                getRemainingCardsOfSuit(Game400Constants.TRUMP_SUIT)
+            val highestTrumpOnTable =
+                currentTrick
+                    .filter {
+                        it.second.suit ==
+                                Game400Constants.TRUMP_SUIT
+                    }
+                    .maxByOrNull { it.second.rank.value }
 
-            val strongestRemaining =
-                remainingTrumps.maxByOrNull { it.rank.value }
+            // إذا الشريك غالب → لا تضرب
+            if (highestTrumpOnTable != null &&
+                highestTrumpOnTable.first.teamId ==
+                player.teamId
+            ) {
+                return validCards.minBy { it.rank.value }
+            }
 
-            val safeTrump = trumps
-                .filter {
-                    strongestRemaining == null ||
-                            it.rank.value >= strongestRemaining.rank.value
-                }
-                .minByOrNull { it.rank.value }
+            val winningTrump =
+                trumps
+                    .filter {
+                        highestTrumpOnTable == null ||
+                                it.rank.value >
+                                highestTrumpOnTable.second.rank.value
+                    }
+                    .minByOrNull { it.rank.value }
 
-            return safeTrump ?: trumps.minBy { it.rank.value }
+            return winningTrump ?: validCards.minBy { it.rank.value }
         }
 
         return validCards.minBy { it.rank.value }
     }
 
-    /* ===================================================== */
+    /* ================================
+       إنهاء الأكلة
+       ================================ */
 
     private fun finishTrick() {
 
@@ -257,9 +307,11 @@ class Game400Engine(
 
         val leadSuit = currentTrick.first().second.suit
 
-        val trumpCards = currentTrick.filter {
-            it.second.suit == Game400Constants.TRUMP_SUIT
-        }
+        val trumpCards =
+            currentTrick.filter {
+                it.second.suit ==
+                        Game400Constants.TRUMP_SUIT
+            }
 
         return if (trumpCards.isNotEmpty()) {
             trumpCards.maxBy { it.second.rank.value }
@@ -269,8 +321,6 @@ class Game400Engine(
                 .maxBy { it.second.rank.value }
         }
     }
-
-    /* ===================================================== */
 
     private fun finishRound() {
 
@@ -284,14 +334,7 @@ class Game400Engine(
 
         players.forEach { player ->
             if (player.score >= Game400Constants.WIN_SCORE) {
-
-                val partner = players.first {
-                    it.teamId == player.teamId && it != player
-                }
-
-                if (partner.score > 0) {
-                    gameWinner = player
-                }
+                gameWinner = player
             }
         }
     }
