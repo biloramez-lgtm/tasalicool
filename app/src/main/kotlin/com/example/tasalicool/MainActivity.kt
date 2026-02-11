@@ -14,19 +14,21 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.tasalicool.ui.screens.Game400Screen
 import com.example.tasalicool.ui.screens.HomeScreen
-import com.example.tasalicool.ui.theme.tasalicoolTheme
+import com.example.tasalicool.ui.theme.TasalicoolTheme
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
-            tasalicoolTheme {
+            TasalicoolTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    tasalicoolNavigation(navController)
+                    TasalicoolNavGraph(navController)
                 }
             }
         }
@@ -34,48 +36,40 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun tasalicoolNavigation(navController: NavHostController) {
+fun TasalicoolNavGraph(navController: NavHostController) {
+
     NavHost(
         navController = navController,
         startDestination = "home"
     ) {
+
         composable("home") {
             HomeScreen(navController)
         }
+
         composable("game_400") {
             Game400Screen(navController)
         }
+
         composable("solitaire") {
-            SolitaireScreen(navController)
+            PlaceholderScreen(navController)
         }
+
         composable("hand_game") {
-            HandGameScreen(navController)
+            PlaceholderScreen(navController)
         }
+
         composable("bluetooth") {
-            BluetoothScreen(navController)
+            PlaceholderScreen(navController)
         }
+
         composable("network") {
-            NetworkScreen(navController)
+            PlaceholderScreen(navController)
         }
     }
 }
 
 @Composable
-fun SolitaireScreen(navController: NavHostController) {
-    HomeScreen(navController) // Placeholder
-}
-
-@Composable
-fun HandGameScreen(navController: NavHostController) {
-    HomeScreen(navController) // Placeholder
-}
-
-@Composable
-fun BluetoothScreen(navController: NavHostController) {
-    HomeScreen(navController) // Placeholder
-}
-
-@Composable
-fun NetworkScreen(navController: NavHostController) {
-    HomeScreen(navController) // Placeholder
+fun PlaceholderScreen(navController: NavHostController) {
+    HomeScreen(navController)
 }
