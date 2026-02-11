@@ -2,11 +2,12 @@ package com.example.tasalicool.models
 
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.random.Random
 
 object Game400AI {
 
     /* =========================================================
-       🧠 ذاكرة عالمية للأوراق الملعوبة
+       🧠 Memory
        ========================================================= */
 
     private val playedCards = mutableSetOf<Card>()
@@ -20,7 +21,7 @@ object Game400AI {
     }
 
     /* =========================================================
-       🧠 تقييم قوة اليد (Hybrid محسّن)
+       🧠 Hand Evaluation – Pro Level
        ========================================================= */
 
     fun evaluateHandStrength(player: Player): Double {
@@ -30,32 +31,31 @@ object Game400AI {
         val trumpCards = player.hand.filter { it.isTrump() }
         val highCards = player.hand.filter { it.rank.value >= 11 }
 
-        score += trumpCards.size * 3.5
+        score += trumpCards.size * 4.5
 
         trumpCards.forEach {
             score += when (it.rank) {
-                Rank.ACE -> 4.0
-                Rank.KING -> 3.0
-                Rank.QUEEN -> 2.0
-                else -> 1.0
+                Rank.ACE -> 6.0
+                Rank.KING -> 4.5
+                Rank.QUEEN -> 3.5
+                Rank.JACK -> 2.5
+                else -> 1.2
             }
         }
 
         highCards.forEach {
-            if (!it.isTrump()) score += 1.5
+            if (!it.isTrump()) score += 2.0
         }
 
         val suitCounts = player.hand.groupBy { it.suit }
         suitCounts.forEach { (_, cards) ->
-            if (cards.size <= 2) score += 1.5
+            if (cards.size <= 2) score += 2.0
         }
 
         return score
     }
 
-    /* =========================================================
-       🎯 مزايدة هجومية ذكية
-       ========================================================= */
+    /* ========================================================= */
 
     fun calculateBid(player: Player): Int {
 
@@ -63,17 +63,14 @@ object Game400AI {
 
         var bid = (strength / 4).toInt()
 
-        bid = max(2, bid)
-        bid = min(13, bid)
+        if (strength > 26) bid++
+        if (strength > 32) bid++
 
-        if (strength > 22) bid += 1
-        if (strength > 28) bid += 1
-
-        return min(bid, 13)
+        return min(max(2, bid), 13)
     }
 
     /* =========================================================
-       🧠 اختيار ورقة – Hybrid Elite
+       🧠 MONTE CARLO CARD SELECTION
        ========================================================= */
 
     fun chooseCard(
@@ -89,18 +86,20 @@ object Game400AI {
 
         for (card in validCards) {
 
-            val probability = calculateWinProbability(player, card)
+            val monteCarlo = simulateFuture(player, card, gameState)
             val tactical = tacticalEvaluation(player, card)
-            val stage = stageFactor(gameState)
+            val pressure = pressureFactor(player, gameState)
             val partner = partnerFactor(player, trick)
+            val stage = stageFactor(gameState)
             val risk = riskFactor(player, gameState)
 
             val score =
-                probability * 0.40 +
-                tactical * 0.25 +
-                stage * 0.15 +
-                partner * 0.10 -
-                risk * 0.10
+                monteCarlo * 0.40 +
+                tactical * 0.15 +
+                pressure * 0.15 +
+                partner * 0.10 +
+                stage * 0.10 -
+                risk * 0.15
 
             if (score > bestScore) {
                 bestScore = score
@@ -112,8 +111,34 @@ object Game400AI {
     }
 
     /* =========================================================
-       🎯 حساب الاحتمال الحقيقي للفوز
+       🎲 Monte Carlo Simulation (خفيف وسريع)
        ========================================================= */
+
+    private fun simulateFuture(
+        player: Player,
+        card: Card,
+        gameState: GameState
+    ): Double {
+
+        var wins = 0
+        val simulations = 25   // خفيف حتى لا يبطئ الهاتف
+
+        repeat(simulations) {
+
+            val probability =
+                calculateWinProbability(player, card)
+
+            val randomFactor =
+                Random.nextDouble(0.7, 1.3)
+
+            if (probability * randomFactor > 0.6)
+                wins++
+        }
+
+        return wins.toDouble() / simulations
+    }
+
+    /* ========================================================= */
 
     private fun calculateWinProbability(
         player: Player,
@@ -130,15 +155,14 @@ object Game400AI {
 
         val trumpThreat =
             remaining.count {
-                it.isTrump() &&
-                        !card.isTrump()
+                it.isTrump() && !card.isTrump()
             }
 
         val total = remaining.size.toDouble()
         if (total == 0.0) return 1.0
 
         val risk =
-            (higherSameSuit + trumpThreat * 0.8) / total
+            (higherSameSuit + trumpThreat * 1.0) / total
 
         return 1.0 - risk
     }
@@ -171,15 +195,15 @@ object Game400AI {
         var score = card.rank.value / 14.0
 
         if (card.isTrump())
-            score += 0.9
+            score += 1.2
 
         val needed =
             player.bid - player.tricksWon
 
         if (needed > 0)
-            score += 0.6
+            score += 0.8
         else
-            score -= 0.3
+            score -= 0.5
 
         return score
     }
@@ -188,13 +212,10 @@ object Game400AI {
         gameState: GameState
     ): Double {
 
-        val trickNumber =
-            gameState.players.sumOf { it.tricksWon }
-
         return when {
-            trickNumber < 4 -> 0.3
-            trickNumber < 9 -> 0.6
-            else -> 1.0
+            gameState.roundNumber < 4 -> 0.3
+            gameState.roundNumber < 9 -> 0.7
+            else -> 1.2
         }
     }
 
@@ -203,18 +224,30 @@ object Game400AI {
         trick: List<Pair<Player, Card>>
     ): Double {
 
-        val partner =
-            trick.firstOrNull {
-                it.first.teamId == player.teamId &&
-                        it.first != player
-            }?.first
+        if (trick.isEmpty()) return 0.0
 
         val currentWinner =
-            trick.maxByOrNull { it.second.rank.value }?.first
+            determineCurrentWinner(trick)
 
-        return if (currentWinner == partner)
-            -0.5
-        else 0.3
+        return if (currentWinner?.teamId == player.teamId)
+            -0.8
+        else 0.6
+    }
+
+    private fun pressureFactor(
+        player: Player,
+        gameState: GameState
+    ): Double {
+
+        val needed = player.bid - player.tricksWon
+        val remaining =
+            13 - gameState.players.sumOf { it.tricksWon }
+
+        return when {
+            needed >= remaining -> 1.2
+            needed > remaining / 2 -> 0.8
+            else -> 0.3
+        }
     }
 
     private fun riskFactor(
@@ -222,20 +255,34 @@ object Game400AI {
         gameState: GameState
     ): Double {
 
-        val totalTricks =
-            gameState.players.sumOf { it.tricksWon }
-
-        val remaining = 13 - totalTricks
         val needed = player.bid - player.tricksWon
+        val remaining =
+            13 - gameState.players.sumOf { it.tricksWon }
 
         return when {
-            needed > remaining -> 1.0
+            needed > remaining -> 1.5
             needed <= 0 -> 0.2
-            else -> 0.5
+            else -> 0.7
         }
     }
 
-    /* ========================================================= */
+    private fun determineCurrentWinner(
+        trick: List<Pair<Player, Card>>
+    ): Player? {
+
+        if (trick.isEmpty()) return null
+
+        val leadSuit = trick.first().second.suit
+
+        val trumpCards =
+            trick.filter { it.second.isTrump() }
+
+        return if (trumpCards.isNotEmpty())
+            trumpCards.maxBy { it.second.rank.value }.first
+        else
+            trick.filter { it.second.suit == leadSuit }
+                .maxBy { it.second.rank.value }.first
+    }
 
     private fun getValidCards(
         player: Player,
