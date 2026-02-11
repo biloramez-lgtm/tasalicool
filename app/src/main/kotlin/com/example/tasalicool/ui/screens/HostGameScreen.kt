@@ -1,7 +1,5 @@
 package com.example.tasalicool.ui.screens
 
-import android.content.Context
-import android.net.wifi.WifiManager
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -9,7 +7,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.example.tasalicool.network.NetworkActions
 import com.example.tasalicool.network.NetworkGameServer
+import com.example.tasalicool.network.NetworkMessage
 import java.net.Inet4Address
 import java.net.NetworkInterface
 
@@ -18,6 +18,7 @@ fun HostGameScreen(navController: NavHostController) {
 
     var serverStarted by remember { mutableStateOf(false) }
     var connectedPlayers by remember { mutableStateOf(listOf<String>()) }
+    var logs by remember { mutableStateOf(listOf<String>()) }
 
     val server = remember { NetworkGameServer(5000) }
 
@@ -31,30 +32,49 @@ fun HostGameScreen(navController: NavHostController) {
         Spacer(modifier = Modifier.height(30.dp))
 
         Text(
-            text = "🎮 استضافة لعبة",
+            text = "🎮 استضافة لعبة عبر Wi-Fi",
             style = MaterialTheme.typography.headlineMedium
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Text(
-            text = "IP جهازك:",
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        Text(
-            text = getLocalIpAddress() ?: "غير متصل بالشبكة",
-            style = MaterialTheme.typography.bodyLarge
-        )
+        Text("IP جهازك:")
+        Text(getLocalIpAddress() ?: "غير متصل بالشبكة")
 
         Spacer(modifier = Modifier.height(30.dp))
 
         Button(
             onClick = {
                 if (!serverStarted) {
-                    server.startServer { playerId ->
-                        connectedPlayers = connectedPlayers + playerId
-                    }
+
+                    server.startServer(
+
+                        onClientConnected = { playerId ->
+                            connectedPlayers = connectedPlayers + playerId
+
+                            logs = logs + "🟢 Player Joined: $playerId"
+
+                            // إرسال رسالة انضمام
+                            server.broadcastMessage(
+                                NetworkMessage(
+                                    playerId = playerId,
+                                    gameType = "LOCAL_WIFI",
+                                    action = NetworkActions.PLAYER_JOINED
+                                )
+                            )
+                        },
+
+                        onMessageReceived = { message ->
+
+                            logs = logs + "📩 ${message.playerId}: ${message.action}"
+
+                            if (message.action == NetworkActions.PLAYER_LEFT) {
+                                connectedPlayers =
+                                    connectedPlayers.filter { it != message.playerId }
+                            }
+                        }
+                    )
+
                     serverStarted = true
                 }
             },
@@ -66,15 +86,28 @@ fun HostGameScreen(navController: NavHostController) {
         Spacer(modifier = Modifier.height(30.dp))
 
         Text("اللاعبون المتصلون:")
+        Spacer(modifier = Modifier.height(10.dp))
 
         connectedPlayers.forEach {
             Text("• $it")
         }
 
+        Spacer(modifier = Modifier.height(30.dp))
+
+        Text("سجل الأحداث:")
+        Spacer(modifier = Modifier.height(10.dp))
+
+        logs.takeLast(5).forEach {
+            Text(it)
+        }
+
         Spacer(modifier = Modifier.height(40.dp))
 
         Button(
-            onClick = { navController.popBackStack() },
+            onClick = {
+                server.stopServer()
+                navController.popBackStack()
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("رجوع")
