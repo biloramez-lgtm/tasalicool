@@ -1,30 +1,28 @@
 package com.example.tasalicool.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.tasalicool.models.Card
-import com.example.tasalicool.models.Rank
 import com.example.tasalicool.models.Suit
+
+/* =========================================================
+   🎴 MAIN CARD VIEW – ELITE VERSION
+   ========================================================= */
 
 @Composable
 fun CardView(
@@ -33,120 +31,129 @@ fun CardView(
     isSelected: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
-    val cardColor = when (card.suit) {
-        Suit.HEARTS, Suit.DIAMONDS -> Color.Red
-        Suit.CLUBS, Suit.SPADES -> Color.Black
+
+    val cardColor = remember(card.suit) {
+        when (card.suit) {
+            Suit.HEARTS, Suit.DIAMONDS -> Color.Red
+            Suit.CLUBS, Suit.SPADES -> Color.Black
+        }
     }
 
-    val suitSymbol = when (card.suit) {
-        Suit.HEARTS -> "♥"
-        Suit.DIAMONDS -> "♦"
-        Suit.CLUBS -> "♣"
-        Suit.SPADES -> "♠"
+    val suitSymbol = remember(card.suit) {
+        when (card.suit) {
+            Suit.HEARTS -> "♥"
+            Suit.DIAMONDS -> "♦"
+            Suit.CLUBS -> "♣"
+            Suit.SPADES -> "♠"
+        }
     }
+
+    val backgroundColor by animateColorAsState(
+        if (isSelected) Color(0xFFFFF3C4) else Color.White,
+        label = "card_bg"
+    )
+
+    val borderWidth by animateDpAsState(
+        if (isSelected) 3.dp else 1.dp,
+        label = "card_border"
+    )
+
+    val elevation by animateDpAsState(
+        if (isSelected) 10.dp else 4.dp,
+        label = "card_elevation"
+    )
 
     Box(
         modifier = modifier
             .size(width = 80.dp, height = 120.dp)
-            .background(
-                color = if (isSelected) Color(0xFFFFE082) else Color.White,
-                shape = RoundedCornerShape(8.dp)
-            )
+            .shadow(elevation, RoundedCornerShape(10.dp))
+            .background(backgroundColor, RoundedCornerShape(10.dp))
             .border(
-                width = if (isSelected) 3.dp else 1.dp,
-                color = if (isSelected) Color(0xFFFBC02D) else Color.Gray,
-                shape = RoundedCornerShape(8.dp)
+                borderWidth,
+                if (isSelected) Color(0xFFFFC107) else Color.Gray,
+                RoundedCornerShape(10.dp)
             )
             .clickable(enabled = onClick != null) { onClick?.invoke() }
             .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
+
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // الزاوية العلوية
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(4.dp)
-            ) {
-                Text(
-                    text = card.rank.displayName,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = cardColor
-                )
-                Text(
-                    text = suitSymbol,
-                    fontSize = 16.sp,
-                    color = cardColor
-                )
-            }
 
-            // الرمز الأوسط
+            CornerContent(card.rank.displayName, suitSymbol, cardColor)
+
             Text(
                 text = suitSymbol,
-                fontSize = 28.sp,
+                fontSize = 30.sp,
                 color = cardColor
             )
 
-            // الزاوية السفلية
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(4.dp)
-            ) {
-                Text(
-                    text = suitSymbol,
-                    fontSize = 16.sp,
-                    color = cardColor
-                )
-                Text(
-                    text = card.rank.displayName,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = cardColor
-                )
-            }
+            CornerContent(suitSymbol, card.rank.displayName, cardColor)
         }
     }
 }
 
+/* ========================================================= */
+
+@Composable
+private fun CornerContent(
+    top: String,
+    bottom: String,
+    color: Color
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = top,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(
+            text = bottom,
+            fontSize = 14.sp,
+            color = color
+        )
+    }
+}
+
+/* =========================================================
+   🎴 CARD BACK
+   ========================================================= */
+
 @Composable
 fun CardBackView(
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null
+    modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .size(width = 80.dp, height = 120.dp)
-            .background(
-                color = Color(0xFF1565C0),
-                shape = RoundedCornerShape(8.dp)
-            )
+            .shadow(6.dp, RoundedCornerShape(10.dp))
+            .background(Color(0xFF1565C0), RoundedCornerShape(10.dp))
             .border(
-                width = 1.dp,
-                color = Color(0xFF0D47A1),
-                shape = RoundedCornerShape(8.dp)
-            )
-            .clickable(enabled = onClick != null) { onClick?.invoke() }
-            .padding(8.dp),
+                1.dp,
+                Color(0xFF0D47A1),
+                RoundedCornerShape(10.dp)
+            ),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "♠♥♦♣",
-                fontSize = 20.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        Text(
+            text = "♠♥♦♣",
+            fontSize = 22.sp,
+            color = Color.White,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
+
+/* =========================================================
+   🎴 COMPACT CARD – PLAYER HAND
+   ========================================================= */
 
 @Composable
 fun CompactCardView(
@@ -155,46 +162,55 @@ fun CompactCardView(
     isSelected: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
-    val cardColor = when (card.suit) {
-        Suit.HEARTS, Suit.DIAMONDS -> Color.Red
-        Suit.CLUBS, Suit.SPADES -> Color.Black
+
+    val cardColor = remember(card.suit) {
+        when (card.suit) {
+            Suit.HEARTS, Suit.DIAMONDS -> Color.Red
+            Suit.CLUBS, Suit.SPADES -> Color.Black
+        }
     }
 
-    val suitSymbol = when (card.suit) {
-        Suit.HEARTS -> "♥"
-        Suit.DIAMONDS -> "♦"
-        Suit.CLUBS -> "♣"
-        Suit.SPADES -> "♠"
+    val suitSymbol = remember(card.suit) {
+        when (card.suit) {
+            Suit.HEARTS -> "♥"
+            Suit.DIAMONDS -> "♦"
+            Suit.CLUBS -> "♣"
+            Suit.SPADES -> "♠"
+        }
     }
+
+    val elevation by animateDpAsState(
+        if (isSelected) 8.dp else 2.dp,
+        label = "compact_elevation"
+    )
 
     Box(
         modifier = modifier
-            .size(width = 50.dp, height = 70.dp)
+            .size(width = 55.dp, height = 75.dp)
+            .shadow(elevation, RoundedCornerShape(6.dp))
             .background(
-                color = if (isSelected) Color(0xFFFFE082) else Color.White,
-                shape = RoundedCornerShape(4.dp)
+                if (isSelected) Color(0xFFFFF3C4) else Color.White,
+                RoundedCornerShape(6.dp)
             )
             .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = if (isSelected) Color(0xFFFBC02D) else Color.Gray,
-                shape = RoundedCornerShape(4.dp)
+                if (isSelected) 2.dp else 1.dp,
+                if (isSelected) Color(0xFFFFC107) else Color.Gray,
+                RoundedCornerShape(6.dp)
             )
             .clickable(enabled = onClick != null) { onClick?.invoke() }
             .padding(4.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = card.rank.displayName,
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = cardColor
             )
             Text(
                 text = suitSymbol,
-                fontSize = 12.sp,
+                fontSize = 14.sp,
                 color = cardColor
             )
         }
