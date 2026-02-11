@@ -1,6 +1,7 @@
 package com.example.tasalicool.models
 
 import java.io.Serializable
+import kotlin.math.max
 
 object Game400Constants {
     const val CARDS_PER_PLAYER = 13
@@ -13,10 +14,10 @@ class Game400Engine(
 ) : Serializable {
 
     val deck = Deck()
+
     var currentPlayerIndex = 0
     var trickNumber = 0
 
-    // أوراق الأكلة الحالية
     val currentTrick: MutableList<Pair<Player, Card>> = mutableListOf()
 
     var roundActive = false
@@ -35,11 +36,17 @@ class Game400Engine(
             it.addCards(deck.drawCards(Game400Constants.CARDS_PER_PLAYER))
         }
 
+        calculateAIBids()
+
         trickNumber = 0
         currentPlayerIndex = 0
         roundActive = true
         currentTrick.clear()
     }
+
+    /* =====================================================
+       اللاعب الحالي
+       ===================================================== */
 
     fun getCurrentPlayer(): Player = players[currentPlayerIndex]
 
@@ -48,19 +55,30 @@ class Game400Engine(
     }
 
     /* =====================================================
-       المزايدة
+       🤖 حساب Bid للذكاء الصناعي
        ===================================================== */
 
-    fun setPlayerBid(player: Player, bid: Int) {
-        player.bid = bid
+    private fun calculateAIBids() {
+        players.forEach { player ->
+            if (!player.isLocal) {
+                player.bid = calculateSmartBid(player)
+            }
+        }
     }
 
-    fun allPlayersBid(): Boolean {
-        return players.all { it.bid > 0 }
-    }
+    private fun calculateSmartBid(player: Player): Int {
 
-    fun totalBids(): Int {
-        return players.sumOf { it.bid }
+        var strength = 0
+
+        player.hand.forEach { card ->
+            if (card.suit == Game400Constants.TRUMP_SUIT)
+                strength += 2
+
+            if (card.rank.value >= 11)
+                strength += 1
+        }
+
+        return max(1, strength / 3)
     }
 
     /* =====================================================
@@ -71,7 +89,6 @@ class Game400Engine(
 
         if (!roundActive) return false
         if (player != getCurrentPlayer()) return false
-
         if (!isValidPlay(player, card)) return false
 
         player.removeCard(card)
@@ -91,15 +108,58 @@ class Game400Engine(
         if (currentTrick.isEmpty()) return true
 
         val leadSuit = currentTrick.first().second.suit
-
         val hasLeadSuit = player.hand.any { it.suit == leadSuit }
 
-        return if (hasLeadSuit) {
-            card.suit == leadSuit
-        } else {
-            true
+        return if (hasLeadSuit) card.suit == leadSuit else true
+    }
+
+    /* =====================================================
+       🤖 AI يلعب تلقائياً
+       ===================================================== */
+
+    fun playAITurnIfNeeded() {
+
+        val current = getCurrentPlayer()
+
+        if (!current.isLocal && roundActive) {
+
+            val card = chooseBestCard(current)
+            playCard(current, card)
+
+            // إذا التالي AI كمان
+            playAITurnIfNeeded()
         }
     }
+
+    private fun chooseBestCard(player: Player): Card {
+
+        val leadSuit = currentTrick.firstOrNull()?.second?.suit
+
+        val validCards = player.hand.filter { isValidPlay(player, it) }
+
+        if (leadSuit == null) {
+            // يبدأ الأكلة → يرمي أقوى ورقة
+            return validCards.maxBy { it.rank.value }
+        }
+
+        val sameSuit = validCards.filter { it.suit == leadSuit }
+
+        if (sameSuit.isNotEmpty()) {
+            return sameSuit.maxBy { it.rank.value }
+        }
+
+        val trumps = validCards.filter { it.suit == Game400Constants.TRUMP_SUIT }
+
+        if (trumps.isNotEmpty()) {
+            return trumps.maxBy { it.rank.value }
+        }
+
+        return validCards.minBy { it.rank.value }
+    }
+
+    /* =====================================================
+       إنهاء الأكلة
+       ===================================================== */
 
     private fun finishTrick() {
 
@@ -120,7 +180,9 @@ class Game400Engine(
 
         val leadSuit = currentTrick.first().second.suit
 
-        val trumpCards = currentTrick.filter { it.second.suit == Game400Constants.TRUMP_SUIT }
+        val trumpCards = currentTrick.filter {
+            it.second.suit == Game400Constants.TRUMP_SUIT
+        }
 
         return if (trumpCards.isNotEmpty()) {
             trumpCards.maxBy { it.second.rank.value }
@@ -140,7 +202,6 @@ class Game400Engine(
         players.forEach { it.applyRoundScore() }
 
         checkGameWinner()
-
         roundActive = false
     }
 
