@@ -1,6 +1,6 @@
 package com.example.tasalicool.ui.screens
 
-import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -10,7 +10,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.tasalicool.models.*
@@ -28,9 +30,9 @@ fun Game400Screen(navController: NavHostController) {
             context = context,
             players = listOf(
                 Player("p1", "أنت", teamId = 0, isLocal = true),
-                Player("p2", "لاعب 2", teamId = 1),
+                Player("p2", "يسار", teamId = 1),
                 Player("p3", "شريكك", teamId = 0),
-                Player("p4", "لاعب 4", teamId = 1)
+                Player("p4", "يمين", teamId = 1)
             )
         )
     }
@@ -38,89 +40,91 @@ fun Game400Screen(navController: NavHostController) {
     var selectedCard by remember { mutableStateOf<Card?>(null) }
     var uiTrigger by remember { mutableStateOf(0) }
 
-    /* ================= START ROUND ================= */
-
     LaunchedEffect(Unit) {
         engine.startNewRound()
         uiTrigger++
     }
 
-    /* ================= AUTO AI LOOP ================= */
-
     LaunchedEffect(uiTrigger) {
-
-        while (
-            engine.roundActive &&
-            !engine.getCurrentPlayer().isLocal
-        ) {
-            delay(600)
+        while (engine.roundActive && !engine.getCurrentPlayer().isLocal) {
+            delay(700)
             engine.playAITurnIfNeeded()
             uiTrigger++
         }
     }
 
+    val localPlayer = engine.players.first { it.isLocal }
+    val leftPlayer = engine.players[1]
+    val topPlayer = engine.players[2]
+    val rightPlayer = engine.players[3]
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .background(Color(0xFF0E3B2E))
+            .padding(12.dp)
     ) {
 
         /* ================= HEADER ================= */
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { navController.popBackStack() }) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White)
             }
 
             Text(
-                text = "🎴 لعبة 400 - Elite AI",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.weight(1f)
+                text = "🎴 لعبة 400 - Legendary AI",
+                color = Color.White,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        /* ================= PLAYERS INFO ================= */
+        /* ================= TOP PLAYER ================= */
 
-        engine.players.forEach { player ->
-            PlayerInfoCard(
-                player = player,
-                isCurrentPlayer = player == engine.getCurrentPlayer()
-            )
-        }
+        PlayerSideInfo(topPlayer, engine)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        /* ================= CURRENT TRICK ================= */
-
-        Text("الأكلة الحالية", style = MaterialTheme.typography.titleMedium)
+        /* ================= TABLE CENTER ================= */
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .weight(1f),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            engine.currentTrick.forEach { pair ->
-                CardView(card = pair.second)
+
+            PlayerVerticalInfo(leftPlayer, engine)
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                Text("الأكلة", color = Color.White)
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    engine.currentTrick.forEach {
+                        CardView(card = it.second)
+                    }
+                }
             }
+
+            PlayerVerticalInfo(rightPlayer, engine)
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        /* ================= LOCAL HAND ================= */
+        /* ================= LOCAL PLAYER ================= */
 
-        val localPlayer = engine.players.first { it.isLocal }
+        PlayerSideInfo(localPlayer, engine)
 
-        Text("أوراقك", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(6.dp))
 
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             items(localPlayer.hand) { card ->
                 CompactCardView(
                     card = card,
@@ -133,13 +137,12 @@ fun Game400Screen(navController: NavHostController) {
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Button(
             onClick = {
                 selectedCard?.let {
-                    val success = engine.playCard(localPlayer, it)
-                    if (success) {
+                    if (engine.playCard(localPlayer, it)) {
                         selectedCard = null
                         uiTrigger++
                     }
@@ -152,77 +155,64 @@ fun Game400Screen(navController: NavHostController) {
         ) {
             Text("لعب الورقة")
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(16.dp))
+/* ================= PLAYER UI COMPONENTS ================= */
 
-        /* ================= ROUND END ================= */
+@Composable
+fun PlayerSideInfo(player: Player, engine: Game400Engine) {
 
-        if (!engine.roundActive && !engine.isGameOver()) {
+    val isCurrent = player == engine.getCurrentPlayer()
 
-            Text(
-                text = "انتهت الجولة",
-                style = MaterialTheme.typography.titleLarge
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = {
-                    engine.startNewRound()
-                    uiTrigger++
-                }
-            ) {
-                Text("جولة جديدة")
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCurrent)
+                Color(0xFF1B5E20)
+            else Color(0xFF1F4D3A)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(player.name, color = Color.White)
+                Text(
+                    "طلب ${player.bid} | أكلات ${player.tricksWon}",
+                    color = Color.LightGray
+                )
             }
-        }
-
-        /* ================= GAME OVER ================= */
-
-        if (engine.isGameOver()) {
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "🏆 الفائز: ${engine.gameWinner?.name}",
-                style = MaterialTheme.typography.headlineMedium
+                "${player.score}",
+                color = Color.White,
+                fontWeight = FontWeight.Bold
             )
         }
     }
 }
 
 @Composable
-fun PlayerInfoCard(player: Player, isCurrentPlayer: Boolean) {
+fun PlayerVerticalInfo(player: Player, engine: Game400Engine) {
+
+    val isCurrent = player == engine.getCurrentPlayer()
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCurrent)
+                Color(0xFF1B5E20)
+            else Color(0xFF1F4D3A)
+        )
     ) {
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
-            Column {
-                Text(
-                    text = if (isCurrentPlayer) "▶ ${player.name}" else player.name,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = "طلب: ${player.bid} | أكلات: ${player.tricksWon}",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Text(
-                text = "${player.score} نقطة",
-                style = MaterialTheme.typography.titleLarge
-            )
+            Text(player.name, color = Color.White)
+            Text("${player.tricksWon}", color = Color.White)
         }
     }
 }
