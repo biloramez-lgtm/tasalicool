@@ -22,8 +22,14 @@ android {
     }
 
     buildTypes {
+
+        debug {
+            isMinifyEnabled = false
+        }
+
         release {
             isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -42,6 +48,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -57,63 +64,70 @@ android {
 
 dependencies {
 
-    // =========================
-    // Core Android
-    // =========================
+    /* =========================
+       Core Android
+       ========================= */
+
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.9.0")
 
-    // =========================
-    // 🔥 Coroutines (مهم للشبكة)
-    // =========================
+    /* =========================
+       Coroutines (للشبكة)
+       ========================= */
+
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    // =========================
-    // Compose BOM (مستقر)
-    // =========================
+    /* =========================
+       Compose BOM
+       ========================= */
+
     implementation(platform("androidx.compose:compose-bom:2024.04.01"))
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-
-    // Icons Extended
     implementation("androidx.compose.material:material-icons-extended")
 
-    // =========================
-    // ViewModel
-    // =========================
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    /* =========================
+       Navigation
+       ========================= */
 
-    // =========================
-    // Navigation Compose
-    // =========================
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
-    // =========================
-    // Material (XML compatibility)
-    // =========================
+    /* =========================
+       ViewModel
+       ========================= */
+
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+
+    /* =========================
+       Material (XML Support)
+       ========================= */
+
     implementation("com.google.android.material:material:1.12.0")
 
-    // =========================
-    // 🔥 Gson (للشبكة + الحفظ)
-    // =========================
+    /* =========================
+       Gson (للشبكة)
+       ========================= */
+
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // =========================
-    // Testing
-    // =========================
+    /* =========================
+       Testing
+       ========================= */
+
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.04.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 
-    // =========================
-    // Debug
-    // =========================
+    /* =========================
+       Debug
+       ========================= */
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
