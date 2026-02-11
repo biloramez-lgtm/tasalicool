@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import java.io.Serializable
-import kotlin.math.maxBy
 
 object Game400Constants {
     const val CARDS_PER_PLAYER = 13
@@ -115,7 +114,7 @@ class Game400Engine(
 
     private fun finishTrick() {
 
-        val winner = determineTrickWinner()
+        val winner = determineTrickWinner() ?: return
         winner.first.incrementTrick()
 
         currentPlayerIndex =
@@ -128,7 +127,9 @@ class Game400Engine(
             finishRound()
     }
 
-    private fun determineTrickWinner(): Pair<Player, Card> {
+    private fun determineTrickWinner(): Pair<Player, Card>? {
+
+        if (currentTrick.isEmpty()) return null
 
         val leadSuit = currentTrick.first().second.suit
 
@@ -138,11 +139,11 @@ class Game400Engine(
             }
 
         return if (trumpCards.isNotEmpty())
-            trumpCards.maxBy { it.second.strength() }
+            trumpCards.maxByOrNull { it.second.strength() }
         else
             currentTrick
                 .filter { it.second.suit == leadSuit }
-                .maxBy { it.second.strength() }
+                .maxByOrNull { it.second.strength() }
     }
 
     /* ================= ROUND END ================= */
