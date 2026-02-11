@@ -1,4 +1,4 @@
-package com.naliam.monexlyx.ui.components
+package com.example.tasalicool.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,25 +11,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.naliam.monexlyx.model.Player
+import com.example.tasalicool.models.Player
 
 @Composable
 fun PlayerSideInfo(
     player: Player,
     isCurrentTurn: Boolean = false
 ) {
-    val borderColor = if (isCurrentTurn) Color.Yellow else Color.Gray
+    val borderColor =
+        if (isCurrentTurn) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.outline
 
     Card(
         modifier = Modifier
             .padding(8.dp)
             .border(2.dp, borderColor, RoundedCornerShape(12.dp)),
-        elevation = CardDefaults.cardElevation(6.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(
             modifier = Modifier
                 .padding(12.dp)
-                .width(120.dp),
+                .width(130.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
@@ -49,7 +51,7 @@ fun PlayerSideInfo(
             Text(
                 text = "Bid: ${player.bid}",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -61,8 +63,10 @@ fun PlayerVerticalInfo(
     isCurrentTurn: Boolean = false
 ) {
     val backgroundColor =
-        if (isCurrentTurn) MaterialTheme.colorScheme.primaryContainer
-        else MaterialTheme.colorScheme.surfaceVariant
+        if (isCurrentTurn)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surfaceVariant
 
     Column(
         modifier = Modifier
