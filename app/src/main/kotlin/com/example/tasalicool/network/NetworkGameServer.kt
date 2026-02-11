@@ -1,6 +1,5 @@
 package com.example.tasalicool.network
 
-import com.google.gson.Gson
 import kotlinx.coroutines.*
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -13,12 +12,13 @@ class NetworkGameServer(private val port: Int = 5000) {
 
     private var serverSocket: ServerSocket? = null
     private val clients = CopyOnWriteArrayList<ClientConnection>()
-    private val gson = Gson()
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val playerCounter = AtomicInteger(1)
 
-    /* ================= START SERVER ================= */
+    /* ===================================================== */
+    /* ================= START SERVER ====================== */
+    /* ===================================================== */
 
     fun startServer(
         onClientConnected: (String) -> Unit = {},
@@ -28,7 +28,7 @@ class NetworkGameServer(private val port: Int = 5000) {
         scope.launch {
             try {
                 serverSocket = ServerSocket(port)
-                println("Server started on port $port")
+                println("🔥 Server started on port $port")
 
                 while (isActive) {
                     val socket = serverSocket?.accept() ?: continue
@@ -37,20 +37,31 @@ class NetworkGameServer(private val port: Int = 5000) {
                     val client = ClientConnection(socket, playerId)
 
                     clients.add(client)
-                    println("Client connected: $playerId")
 
+                    println("✅ Client connected: $playerId")
                     onClientConnected(playerId)
+
+                    // إرسال رسالة JOIN للجميع
+                    broadcastMessage(
+                        NetworkMessage(
+                            playerId = playerId,
+                            gameType = "TASALI",
+                            action = GameAction.JOIN
+                        )
+                    )
 
                     listenToClient(client, onClientDisconnected, onMessageReceived)
                 }
 
             } catch (e: Exception) {
-                e.printStackTrace()
+                println("❌ Server error: ${e.message}")
             }
         }
     }
 
-    /* ================= LISTEN TO CLIENT ================= */
+    /* ===================================================== */
+    /* ================= LISTEN TO CLIENT ================== */
+    /* ===================================================== */
 
     private fun listenToClient(
         client: ClientConnection,
@@ -61,14 +72,30 @@ class NetworkGameServer(private val port: Int = 5000) {
             try {
                 while (isActive) {
                     val json = client.input.readUTF()
-
-                    val message =
-                        gson.fromJson(json, NetworkMessage::class.java)
+                    val message = NetworkMessage.fromJson(json)
 
                     onMessageReceived(message)
 
-                    // بث الرسالة لجميع اللاعبين باستثناء المرسل
-                    broadcastMessage(message, excludePlayer = client.playerId)
+                    when (message.action) {
+
+                        GameAction.PLAY_CARD,
+                        GameAction.DEAL_CARDS,
+                        GameAction.START_GAME,
+                        GameAction.UPDATE_GAME_STATE,
+                        GameAction.MESSAGE -> {
+
+                            broadcastMessage(
+                                message,
+                                excludePlayer = client.playerId
+                            )
+                        }
+
+                        GameAction.LEAVE -> {
+                            removeClient(client, onClientDisconnected)
+                        }
+
+                        else -> {}
+                    }
                 }
 
             } catch (e: Exception) {
@@ -77,13 +104,15 @@ class NetworkGameServer(private val port: Int = 5000) {
         }
     }
 
-    /* ================= BROADCAST ================= */
+    /* ===================================================== */
+    /* ================= BROADCAST ========================= */
+    /* ===================================================== */
 
     fun broadcastMessage(
         message: NetworkMessage,
         excludePlayer: String? = null
     ) {
-        val json = gson.toJson(message)
+        val json = NetworkMessage.toJson(message)
 
         clients.forEach { client ->
             if (client.playerId == excludePlayer) return@forEach
@@ -97,20 +126,26 @@ class NetworkGameServer(private val port: Int = 5000) {
         }
     }
 
-    /* ================= SEND GAME STATE ================= */
+    /* ===================================================== */
+    /* ================= SEND TO ONE PLAYER ================= */
+    /* ===================================================== */
 
-    fun sendGameState(gameStateJson: String) {
-        val message = NetworkMessage(
-            playerId = "SERVER",
-            gameType = "GAME",
-            action = NetworkActions.GAME_STATE_UPDATE,
-            payload = mapOf("state" to gameStateJson)
-        )
+    fun sendToPlayer(playerId: String, message: NetworkMessage) {
+        val json = NetworkMessage.toJson(message)
 
-        broadcastMessage(message)
+        clients.find { it.playerId == playerId }?.let { client ->
+            try {
+                client.output.writeUTF(json)
+                client.output.flush()
+            } catch (e: Exception) {
+                removeClient(client) {}
+            }
+        }
     }
 
-    /* ================= REMOVE CLIENT ================= */
+    /* ===================================================== */
+    /* ================= REMOVE CLIENT ===================== */
+    /* ===================================================== */
 
     private fun removeClient(
         client: ClientConnection,
@@ -120,11 +155,22 @@ class NetworkGameServer(private val port: Int = 5000) {
 
         try { client.socket.close() } catch (_: Exception) {}
 
-        println("Client disconnected: ${client.playerId}")
+        println("🚪 Client disconnected: ${client.playerId}")
+
+        broadcastMessage(
+            NetworkMessage(
+                playerId = client.playerId,
+                gameType = "TASALI",
+                action = GameAction.LEAVE
+            )
+        )
+
         onClientDisconnected(client.playerId)
     }
 
-    /* ================= STOP SERVER ================= */
+    /* ===================================================== */
+    /* ================= STOP SERVER ======================= */
+    /* ===================================================== */
 
     fun stopServer() {
         scope.cancel()
@@ -135,12 +181,12 @@ class NetworkGameServer(private val port: Int = 5000) {
 
         try { serverSocket?.close() } catch (_: Exception) {}
 
-        println("Server stopped")
+        println("🛑 Server stopped")
     }
 }
 
 /* ====================================================== */
-/* ================= CLIENT CONNECTION =================== */
+/* ================= CLIENT CONNECTION ================== */
 /* ====================================================== */
 
 data class ClientConnection(
@@ -149,30 +195,4 @@ data class ClientConnection(
 ) {
     val input: DataInputStream = DataInputStream(socket.inputStream)
     val output: DataOutputStream = DataOutputStream(socket.outputStream)
-}
-
-/* ====================================================== */
-/* ================= NETWORK MESSAGE ===================== */
-/* ====================================================== */
-
-data class NetworkMessage(
-    val playerId: String,
-    val gameType: String,
-    val action: String,
-    val payload: Map<String, String> = emptyMap(),
-    val timestamp: Long = System.currentTimeMillis()
-)
-
-/* ====================================================== */
-/* ================= NETWORK ACTIONS ===================== */
-/* ====================================================== */
-
-object NetworkActions {
-    const val PLAYER_JOINED = "PLAYER_JOINED"
-    const val PLAYER_LEFT = "PLAYER_LEFT"
-    const val GAME_STARTED = "GAME_STARTED"
-    const val GAME_STATE_UPDATE = "GAME_STATE_UPDATE"
-    const val CARD_PLAYED = "CARD_PLAYED"
-    const val TURN_CHANGED = "TURN_CHANGED"
-    const val GAME_ENDED = "GAME_ENDED"
 }
