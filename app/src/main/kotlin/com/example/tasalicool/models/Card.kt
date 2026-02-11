@@ -15,7 +15,7 @@ enum class Suit {
    ===================================================== */
 
 enum class Rank(val displayName: String, val value: Int) {
-    ACE("A", 14),        // في لعبة 400 الآص أعلى ورقة
+    ACE("A", 14),
     KING("K", 13),
     QUEEN("Q", 12),
     JACK("J", 11),
@@ -39,7 +39,7 @@ data class Card(
     val rank: Rank
 ) : Serializable {
 
-    // الطرنيب الثابت = HEARTS
+    // الطرنيب ثابت HEARTS (يمكن تغييره لاحقاً بسهولة)
     fun isTrump(): Boolean = suit == Suit.HEARTS
 
     override fun toString(): String =
@@ -47,6 +47,11 @@ data class Card(
 
     fun getResourceName(): String =
         "${rank.displayName.lowercase()}_of_${suit.name.lowercase()}"
+
+    /* 🔥 مهم للـ AI والذاكرة */
+    fun strength(): Int {
+        return if (isTrump()) rank.value + 20 else rank.value
+    }
 }
 
 /* =====================================================
@@ -58,18 +63,18 @@ data class Deck(
 ) {
 
     init {
-        if (cards.isEmpty()) {
-            reset()
-        }
+        if (cards.isEmpty()) reset()
     }
 
     fun reset() {
         cards.clear()
+
         Suit.values().forEach { suit ->
             Rank.values().forEach { rank ->
                 cards.add(Card(suit, rank))
             }
         }
+
         shuffle()
     }
 
@@ -94,7 +99,7 @@ data class Deck(
 }
 
 /* =====================================================
-   نموذج اللاعب (معدل للعبة 400)
+   نموذج اللاعب
    ===================================================== */
 
 data class Player(
@@ -103,16 +108,10 @@ data class Player(
 
     val hand: MutableList<Card> = mutableListOf(),
 
-    // مجموع النقاط التراكمي
     var score: Int = 0,
-
-    // الطلب الحالي
     var bid: Int = 0,
-
-    // عدد الأكلات في الجولة
     var tricksWon: Int = 0,
 
-    // الفريق (0 أو 1)
     var teamId: Int = 0,
 
     val isLocal: Boolean = false
@@ -137,7 +136,10 @@ data class Player(
         hand.size
 
     private fun sortHand() {
-        hand.sortWith(compareBy<Card> { it.suit.ordinal }.thenByDescending { it.rank.value })
+        hand.sortWith(
+            compareBy<Card> { it.suit.ordinal }
+                .thenByDescending { it.strength() }   // 🔥 يستخدم قوة الورقة
+        )
     }
 
     /* ===== إدارة الجولة ===== */
@@ -156,17 +158,16 @@ data class Player(
 
     fun applyRoundScore(): Int {
 
-        var points = 0
+        val points = when {
 
-        if (bid == 13) {
-            // طلب 13 حالة خاصة
-            points = if (tricksWon == 13) 400 else -52
-        } else {
-            if (tricksWon >= bid) {
-                points = if (bid >= 7) bid * 2 else bid
-            } else {
-                points = if (bid >= 7) -(bid * 2) else -bid
-            }
+            bid == 13 ->
+                if (tricksWon == 13) 400 else -52
+
+            tricksWon >= bid ->
+                if (bid >= 7) bid * 2 else bid
+
+            else ->
+                if (bid >= 7) -(bid * 2) else -bid
         }
 
         score += points
@@ -185,7 +186,6 @@ data class GameState(
     var currentPlayerIndex: Int = 0,
     val deck: Deck = Deck(),
 
-    // أوراق الأكلة الحالية
     val currentTrick: MutableList<Pair<Player, Card>> = mutableListOf(),
 
     var roundNumber: Int = 1,
@@ -198,8 +198,13 @@ data class GameState(
         players[currentPlayerIndex]
 
     fun nextPlayer() {
-        currentPlayerIndex = (currentPlayerIndex + 1) % players.size
+        currentPlayerIndex =
+            (currentPlayerIndex + 1) % players.size
     }
+
+    /* 🔥 مهم جداً للـ AI */
+    fun totalTricksPlayed(): Int =
+        players.sumOf { it.tricksWon }
 }
 
 /* =====================================================
