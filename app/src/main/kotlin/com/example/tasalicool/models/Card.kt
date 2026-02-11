@@ -68,6 +68,11 @@ data class Deck(
         return drawn
     }
 
+    // ✅ أضفناها لدعم إعادة خلط discard pile
+    fun addCards(newCards: List<Card>) {
+        cards.addAll(newCards)
+    }
+
     fun size(): Int = cards.size
 
     fun isEmpty(): Boolean = cards.isEmpty()
