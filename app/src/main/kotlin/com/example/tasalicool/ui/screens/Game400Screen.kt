@@ -11,32 +11,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.example.tasalicool.models.Card
-import com.example.tasalicool.models.Game400Round
-import com.example.tasalicool.models.Player
-import com.example.tasalicool.ui.components.CardBackView
+import com.example.tasalicool.models.*
 import com.example.tasalicool.ui.components.CardView
 import com.example.tasalicool.ui.components.CompactCardView
 
 @Composable
 fun Game400Screen(navController: NavHostController) {
 
-    val gameRound = remember {
-        Game400Round(
+    // 🔥 إنشاء اللاعبين الأربعة (فريقين)
+    val engine = remember {
+        Game400Engine(
             players = listOf(
-                Player("p1", "أنت"),
-                Player("p2", "اللاعب 2")
+                Player("p1", "أنت", teamId = 0, isLocal = true),
+                Player("p2", "لاعب 2", teamId = 1),
+                Player("p3", "شريكك", teamId = 0),
+                Player("p4", "لاعب 4", teamId = 1)
             )
         )
     }
 
     var selectedCard by remember { mutableStateOf<Card?>(null) }
-
-    // state بسيط فقط لإجبار recomposition عند الحاجة
     var uiTrigger by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
-        gameRound.initialize()
+        engine.startNewRound()
         uiTrigger++
     }
 
@@ -62,62 +60,43 @@ fun Game400Screen(navController: NavHostController) {
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Player Info
-        gameRound.players.forEach { player ->
+        // عرض معلومات اللاعبين
+        engine.players.forEach { player ->
             PlayerInfoCard(
                 player = player,
-                isCurrentPlayer = player == gameRound.getCurrentPlayer()
+                isCurrentPlayer = player == engine.getCurrentPlayer()
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Table
-        Text(
-            text = "أوراق على الطاولة",
-            style = MaterialTheme.typography.titleMedium
-        )
+        // عرض الأكلة الحالية
+        Text("الأكلة الحالية", style = MaterialTheme.typography.titleMedium)
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-
-            if (gameRound.deck.size() > 0) {
-                CardBackView(
-                    onClick = {
-                        gameRound.drawFromDeck()
-                        uiTrigger++
-                    }
-                )
-                Text(text = "${gameRound.deck.size()}")
-            }
-
-            if (gameRound.discardPile.isNotEmpty()) {
-                CardView(card = gameRound.discardPile.last())
+            engine.currentTrick.forEach { pair ->
+                CardView(card = pair.second)
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Player Hand
-        Text(
-            text = "أوراقك",
-            style = MaterialTheme.typography.titleMedium
-        )
+        // يد اللاعب المحلي فقط
+        val currentPlayer = engine.players.first { it.isLocal }
+
+        Text("أوراقك", style = MaterialTheme.typography.titleMedium)
 
         LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(gameRound.getCurrentPlayer().hand) { card ->
+            items(currentPlayer.hand) { card ->
                 CompactCardView(
                     card = card,
                     isSelected = card == selectedCard,
@@ -128,45 +107,50 @@ fun Game400Screen(navController: NavHostController) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Actions
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-
-            Button(
-                onClick = {
-                    selectedCard?.let {
-                        if (gameRound.playCard(it)) {
-                            selectedCard = null
-                            uiTrigger++
-                        }
+        Button(
+            onClick = {
+                selectedCard?.let {
+                    val success = engine.playCard(currentPlayer, it)
+                    if (success) {
+                        selectedCard = null
+                        uiTrigger++
                     }
-                },
-                modifier = Modifier.weight(1f),
-                enabled = selectedCard != null
-            ) {
-                Text("لعب الورقة")
-            }
-
-            Button(
-                onClick = {
-                    gameRound.drawFromDeck()
-                    uiTrigger++
-                },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("سحب ورقة")
-            }
+                }
+            },
+            enabled = selectedCard != null,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("لعب الورقة")
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
         // نهاية الجولة
-        if (gameRound.isRoundOver()) {
-            Spacer(modifier = Modifier.height(24.dp))
+        if (!engine.roundActive) {
 
             Text(
                 text = "انتهت الجولة",
                 style = MaterialTheme.typography.titleLarge
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    engine.startNewRound()
+                    uiTrigger++
+                }
+            ) {
+                Text("جولة جديدة")
+            }
+        }
+
+        if (engine.isGameOver()) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "🎉 الفائز: ${engine.gameWinner?.name}",
+                style = MaterialTheme.typography.headlineMedium
             )
         }
     }
@@ -196,7 +180,7 @@ fun PlayerInfoCard(player: Player, isCurrentPlayer: Boolean) {
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    text = "عدد الأوراق: ${player.handSize()}",
+                    text = "طلب: ${player.bid} | أكلات: ${player.tricksWon}",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
