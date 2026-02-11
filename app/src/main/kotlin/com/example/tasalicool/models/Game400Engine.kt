@@ -1,11 +1,9 @@
 package com.example.tasalicool.models
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
 import java.io.Serializable
-import kotlin.math.*
 
 object Game400Constants {
     const val CARDS_PER_PLAYER = 13
@@ -21,14 +19,8 @@ class Game400Engine(
     private val appContext = context.applicationContext
     val deck = Deck()
 
-    private val prefs: SharedPreferences =
-        appContext.getSharedPreferences(
-            "FINAL_ELITE_AI",
-            Context.MODE_PRIVATE
-        )
-
-    private val elo = EloRating(prefs)
-    private val learning = PlayerLearningSystem(prefs)
+    private val elo = EloRating()
+    private val learning = PlayerLearningSystem()
 
     var currentPlayerIndex = 0
     var trickNumber = 0
@@ -40,8 +32,6 @@ class Game400Engine(
     init {
         players.forEach { it.tricksWon = 0 }
     }
-
-    /* ================= START ROUND ================= */
 
     fun startNewRound() {
 
@@ -60,7 +50,6 @@ class Game400Engine(
         roundActive = true
         currentTrick.clear()
 
-        // 🔥 Auto Save عند بداية الجولة
         GameSaveManager.saveGame(appContext, this)
     }
 
@@ -71,8 +60,6 @@ class Game400Engine(
             }
         }
     }
-
-    /* ================= AI TURN ================= */
 
     fun playAITurnIfNeeded() {
 
@@ -96,7 +83,6 @@ class Game400Engine(
     }
 
     private fun buildGameState(): GameState {
-
         return GameState(
             players = players,
             currentPlayerIndex = currentPlayerIndex,
@@ -107,8 +93,6 @@ class Game400Engine(
             winner = gameWinner
         )
     }
-
-    /* ================= GAME FLOW ================= */
 
     fun playCard(player: Player, card: Card): Boolean {
 
@@ -130,7 +114,6 @@ class Game400Engine(
         else
             nextPlayer()
 
-        // 🔥 Auto Save بعد كل حركة
         GameSaveManager.saveGame(appContext, this)
 
         return true
@@ -168,8 +151,7 @@ class Game400Engine(
 
         val trumpCards =
             currentTrick.filter {
-                it.second.suit ==
-                        Game400Constants.TRUMP_SUIT
+                it.second.suit == Game400Constants.TRUMP_SUIT
             }
 
         return if (trumpCards.isNotEmpty())
@@ -201,7 +183,6 @@ class Game400Engine(
 
         roundActive = false
 
-        // 🔥 Auto Save بعد نهاية الجولة
         GameSaveManager.saveGame(appContext, this)
     }
 
