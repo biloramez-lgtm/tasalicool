@@ -29,10 +29,31 @@ fun Game400Screen(navController: NavHostController) {
         Game400Engine(
             context = context,
             players = listOf(
-                Player("p1", "أنت", 0, true),
-                Player("p2", "يسار", 1),
-                Player("p3", "شريكك", 0),
-                Player("p4", "يمين", 1)
+                Player(
+                    id = "p1",
+                    name = "أنت",
+                    teamId = 0,
+                    isLocal = true,
+                    difficulty = AIDifficulty.EASY
+                ),
+                Player(
+                    id = "p2",
+                    name = "يسار",
+                    teamId = 1,
+                    difficulty = AIDifficulty.HARD
+                ),
+                Player(
+                    id = "p3",
+                    name = "شريكك",
+                    teamId = 0,
+                    difficulty = AIDifficulty.NORMAL
+                ),
+                Player(
+                    id = "p4",
+                    name = "يمين",
+                    teamId = 1,
+                    difficulty = AIDifficulty.HARD
+                )
             )
         )
     }
@@ -90,9 +111,7 @@ fun Game400Screen(navController: NavHostController) {
                     Text("العودة للرئيسية")
                 }
             },
-            title = {
-                Text("انتهت الجولة")
-            },
+            title = { Text("انتهت الجولة") },
             text = {
                 Column {
                     engine.players.forEach {
@@ -115,9 +134,7 @@ fun Game400Screen(navController: NavHostController) {
                     Text("إنهاء اللعبة")
                 }
             },
-            title = {
-                Text("🏆 انتهت اللعبة")
-            },
+            title = { Text("🏆 انتهت اللعبة") },
             text = {
                 Text("الفائز: ${engine.gameWinner?.name}")
             }
@@ -163,10 +180,8 @@ fun Game400Screen(navController: NavHostController) {
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            horizontalArrangement =
-            Arrangement.SpaceBetween,
-            verticalAlignment =
-            Alignment.CenterVertically
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
 
             PlayerVerticalInfo(leftPlayer, engine)
