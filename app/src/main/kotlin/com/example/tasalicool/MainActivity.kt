@@ -14,6 +14,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.example.tasalicool.ui.screens.Game400Screen
 import com.example.tasalicool.ui.screens.HomeScreen
+import com.example.tasalicool.ui.screens.AboutScreen
 import com.example.tasalicool.ui.theme.TasalicoolTheme
 
 class MainActivity : ComponentActivity() {
@@ -34,6 +35,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+/* ========================================================= */
+/* ================= NAVIGATION GRAPH ====================== */
+/* ========================================================= */
 
 @Composable
 fun TasalicoolNavGraph(navController: NavHostController) {
@@ -58,7 +63,13 @@ fun TasalicoolNavGraph(navController: NavHostController) {
         /* ================= RESUME GAME ================= */
 
         composable("resume_game") {
-            Game400Screen(navController)   // نفس الشاشة
+            Game400Screen(navController)
+        }
+
+        /* ================= ABOUT ================= */
+
+        composable("about") {
+            AboutScreen(navController)
         }
 
         /* ================= OTHER SCREENS ================= */
@@ -114,7 +125,11 @@ fun PlaceholderScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = { navController.navigate("home") }
+                onClick = {
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = true }
+                    }
+                }
             ) {
                 Text("العودة للرئيسية")
             }
