@@ -1,6 +1,8 @@
 package com.example.tasalicool.models
 
 import java.io.Serializable
+import kotlin.math.max
+import kotlin.math.min
 
 /* =====================================================
    أنواع الأوراق
@@ -31,7 +33,7 @@ enum class Rank(val displayName: String, val value: Int) {
 }
 
 /* =====================================================
-   نموذج الورقة
+   Card
    ===================================================== */
 
 data class Card(
@@ -52,7 +54,7 @@ data class Card(
 }
 
 /* =====================================================
-   نموذج الدك
+   Deck
    ===================================================== */
 
 data class Deck(
@@ -73,9 +75,7 @@ data class Deck(
         shuffle()
     }
 
-    fun shuffle() {
-        cards.shuffle()
-    }
+    fun shuffle() = cards.shuffle()
 
     fun drawCard(): Card? =
         if (cards.isNotEmpty()) cards.removeAt(0) else null
@@ -89,12 +89,22 @@ data class Deck(
     }
 
     fun size(): Int = cards.size
-
     fun isEmpty(): Boolean = cards.isEmpty()
 }
 
 /* =====================================================
-   نموذج اللاعب
+   AI Difficulty
+   ===================================================== */
+
+enum class AIDifficulty {
+    EASY,
+    NORMAL,
+    HARD,
+    ELITE
+}
+
+/* =====================================================
+   Player (Elite Adaptive Version)
    ===================================================== */
 
 data class Player(
@@ -106,9 +116,15 @@ data class Player(
     var bid: Int = 0,
     var tricksWon: Int = 0,
     var teamId: Int = 0,
-    val isLocal: Boolean = false
+    val isLocal: Boolean = false,
+
+    // 🔥 جديد
+    var difficulty: AIDifficulty = AIDifficulty.NORMAL,
+    var rating: Int = 1200
 
 ) : Serializable {
+
+    /* ================= Hand Management ================= */
 
     fun addCards(cards: List<Card>) {
         hand.addAll(cards)
@@ -118,9 +134,7 @@ data class Player(
     fun removeCard(card: Card): Boolean =
         hand.remove(card)
 
-    fun clearHand() {
-        hand.clear()
-    }
+    fun clearHand() = hand.clear()
 
     fun handSize(): Int = hand.size
 
@@ -131,6 +145,8 @@ data class Player(
         )
     }
 
+    /* ================= Round Reset ================= */
+
     fun resetForNewRound() {
         bid = 0
         tricksWon = 0
@@ -140,6 +156,8 @@ data class Player(
     fun incrementTrick() {
         tricksWon++
     }
+
+    /* ================= Scoring ================= */
 
     fun applyRoundScore(): Int {
 
@@ -159,17 +177,41 @@ data class Player(
     }
 
     fun isPositiveScore(): Boolean = score > 0
-}
 
-/* =====================================================
-   AI Difficulty
-   ===================================================== */
+    /* ================= AI Aggression ================= */
 
-enum class AIDifficulty {
-    EASY,
-    NORMAL,
-    HARD,
-    ELITE
+    fun aggressionFactor(): Double {
+        return when (difficulty) {
+            AIDifficulty.EASY -> 0.8
+            AIDifficulty.NORMAL -> 1.0
+            AIDifficulty.HARD -> 1.2
+            AIDifficulty.ELITE -> 1.4
+        }
+    }
+
+    /* ================= ELO SYSTEM ================= */
+
+    fun updateRating(opponentRating: Int, won: Boolean) {
+
+        val kFactor = when (difficulty) {
+            AIDifficulty.EASY -> 16
+            AIDifficulty.NORMAL -> 24
+            AIDifficulty.HARD -> 32
+            AIDifficulty.ELITE -> 40
+        }
+
+        val expected =
+            1.0 / (1 + Math.pow(10.0,
+                (opponentRating - rating) / 400.0))
+
+        val scoreValue = if (won) 1.0 else 0.0
+
+        rating =
+            (rating + kFactor *
+                    (scoreValue - expected)).toInt()
+
+        rating = max(800, min(3000, rating))
+    }
 }
 
 /* =====================================================
@@ -182,28 +224,19 @@ data class RoundResult(
 ) : Serializable
 
 /* =====================================================
-   Game State (Elite Stable Version)
+   GameState (Ultimate Stable)
    ===================================================== */
 
 data class GameState(
 
     val players: List<Player>,
-
     var currentPlayerIndex: Int = 0,
-
     val deck: Deck = Deck(),
-
     val currentTrick: MutableList<Pair<Player, Card>> = mutableListOf(),
 
     var roundNumber: Int = 1,
-
     var gameInProgress: Boolean = true,
-
     var winner: Player? = null,
-
-    var difficulty: AIDifficulty = AIDifficulty.NORMAL,
-
-    var playerRating: Int = 1200,
 
     val matchHistory: MutableList<RoundResult> = mutableListOf()
 
@@ -219,8 +252,6 @@ data class GameState(
 
     fun totalTricksPlayed(): Int =
         players.sumOf { it.tricksWon }
-
-    /* ================= Validation ================= */
 
     fun isStateValid(): Boolean {
 
@@ -238,8 +269,6 @@ data class GameState(
         return true
     }
 
-    /* ================= Match History ================= */
-
     fun recordRoundResult() {
 
         val teamScores =
@@ -254,23 +283,10 @@ data class GameState(
 
         roundNumber++
     }
-
-    /* ================= Rating System ================= */
-
-    fun updateRating(playerWon: Boolean) {
-
-        val change =
-            if (playerWon) 25 else -20
-
-        playerRating += change
-
-        if (playerRating < 800)
-            playerRating = 800
-    }
 }
 
 /* =====================================================
-   نوع اللعبة
+   Game Type
    ===================================================== */
 
 enum class GameType {
