@@ -1,4 +1,4 @@
-package com.example.cardgames.models
+package com.example.tasalicool.models
 
 import java.io.Serializable
 
