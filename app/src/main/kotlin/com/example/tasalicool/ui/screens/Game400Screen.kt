@@ -28,7 +28,6 @@ fun Game400Screen(navController: NavHostController) {
     var showRoundDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        engine.initializeDefaultPlayers()
         engine.startNewRound()
         uiTrigger++
     }
@@ -37,10 +36,15 @@ fun Game400Screen(navController: NavHostController) {
 
         val currentPlayer = engine.getCurrentPlayer()
 
-        if (engine.roundActive && currentPlayer.isAI) {
+        if (engine.roundActive && currentPlayer.isAI()) {
             delay(700)
-            engine.playAITurn()
-            uiTrigger++
+
+            // AI plays first available card
+            val aiCard = currentPlayer.hand.firstOrNull()
+            aiCard?.let {
+                engine.playCard(currentPlayer, it)
+                uiTrigger++
+            }
         }
 
         if (!engine.roundActive && !engine.isGameOver()) {
@@ -168,7 +172,7 @@ fun Game400Screen(navController: NavHostController) {
                     card = card,
                     isSelected = card == selectedCard,
                     onClick = {
-                        if (!engine.getCurrentPlayer().isAI)
+                        if (!engine.getCurrentPlayer().isAI())
                             selectedCard = card
                     }
                 )
@@ -180,7 +184,7 @@ fun Game400Screen(navController: NavHostController) {
         Button(
             onClick = {
                 selectedCard?.let {
-                    if (engine.playCard(it)) {
+                    if (engine.playCard(localPlayer, it)) {
                         selectedCard = null
                         uiTrigger++
                     }
@@ -188,7 +192,7 @@ fun Game400Screen(navController: NavHostController) {
             },
             enabled =
                 selectedCard != null &&
-                        !engine.getCurrentPlayer().isAI &&
+                        !engine.getCurrentPlayer().isAI() &&
                         engine.roundActive,
             modifier = Modifier.fillMaxWidth()
         ) {
