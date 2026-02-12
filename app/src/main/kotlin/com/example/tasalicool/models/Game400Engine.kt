@@ -10,31 +10,27 @@ object Game400Constants {
     val TRUMP_SUIT = Suit.HEARTS
 }
 
-/* ================= GAME LISTENER ================= */
-
-interface GameEventListener {
-    fun onCardsDealt(players: List<Player>)
-    fun onCardPlayed(player: Player, card: Card)
-    fun onTrickFinished(winner: Player, trickNumber: Int)
-    fun onRoundFinished(players: List<Player>)
-    fun onGameFinished(winner: Player)
-}
-
 /* ================= PURE GAME ENGINE ================= */
 
 class Game400Engine(
-    val players: List<Player>,
-    private val listener: GameEventListener? = null
+    val players: List<Player>
 ) : Serializable {
 
-    val deck = Deck()
+    private val deck = Deck()
 
     var currentPlayerIndex = 0
+        private set
+
     var trickNumber = 0
+        private set
+
     val currentTrick = mutableListOf<Pair<Player, Card>>()
 
     var roundActive = false
+        private set
+
     var gameWinner: Player? = null
+        private set
 
     init {
         players.forEach { it.tricksWon = 0 }
@@ -48,15 +44,16 @@ class Game400Engine(
 
         players.forEach {
             it.resetForNewRound()
-            it.addCards(deck.drawCards(Game400Constants.CARDS_PER_PLAYER))
+            it.addCards(
+                deck.drawCards(Game400Constants.CARDS_PER_PLAYER)
+            )
         }
 
         trickNumber = 0
         currentPlayerIndex = 0
         roundActive = true
         currentTrick.clear()
-
-        listener?.onCardsDealt(players)
+        gameWinner = null
     }
 
     /* ================= GAME FLOW ================= */
@@ -70,8 +67,6 @@ class Game400Engine(
         player.removeCard(card)
         currentTrick.add(player to card)
 
-        listener?.onCardPlayed(player, card)
-
         if (currentTrick.size == players.size)
             finishTrick()
         else
@@ -82,6 +77,9 @@ class Game400Engine(
 
     fun getCurrentPlayer(): Player =
         players[currentPlayerIndex]
+
+    fun isCurrentPlayerAI(): Boolean =
+        getCurrentPlayer().isAI()
 
     private fun nextPlayer() {
         currentPlayerIndex =
@@ -102,8 +100,6 @@ class Game400Engine(
 
         currentTrick.clear()
         trickNumber++
-
-        listener?.onTrickFinished(winner, trickNumber)
 
         if (trickNumber >= Game400Constants.CARDS_PER_PLAYER)
             finishRound()
@@ -134,8 +130,6 @@ class Game400Engine(
 
         players.forEach { it.applyRoundScore() }
 
-        listener?.onRoundFinished(players)
-
         checkGameWinner()
         roundActive = false
     }
@@ -144,7 +138,6 @@ class Game400Engine(
         players.forEach {
             if (it.score >= Game400Constants.WIN_SCORE) {
                 gameWinner = it
-                listener?.onGameFinished(it)
             }
         }
     }
@@ -171,6 +164,6 @@ class Game400Engine(
 
     /* ================= GAME STATE ================= */
 
-    fun isGameOver() =
+    fun isGameOver(): Boolean =
         gameWinner != null
 }
