@@ -10,8 +10,8 @@ data class Card(
     /* ================= GAME LOGIC ================= */
 
     fun isTrump(): Boolean {
-        return suit == Suit.HEARTS
-    }
+    return suit == Game400Constants.TRUMP_SUIT
+}
 
     fun strength(): Int {
         return if (isTrump()) {
