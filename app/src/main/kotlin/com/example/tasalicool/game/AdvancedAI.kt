@@ -79,9 +79,9 @@ object Game400AI {
        ========================================================= */
 
     fun chooseCard(
-        player: Player,
-        gameState: GameState
-    ): Card {
+    player: Player,
+    controller: GameController
+ ): Card
 
         val trick: List<Pair<Player, Card>> = gameState.currentTrick
         val validCards = getValidCards(player, trick)
