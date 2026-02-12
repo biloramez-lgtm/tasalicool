@@ -27,35 +27,29 @@ fun Game400Screen(navController: NavHostController) {
     var uiTrigger by remember { mutableStateOf(0) }
     var showRoundDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        engine.startNewRound()
-        uiTrigger++
-    }
+    LaunchedEffect(engine.currentPlayerIndex, engine.phase, uiTrigger) {
 
-    LaunchedEffect(engine.currentPlayerIndex, uiTrigger) {
-
-        val currentPlayer = engine.getCurrentPlayer()
-
-        if (engine.roundActive && currentPlayer.isAI()) {
+        if (engine.isAITurn()) {
             delay(700)
-
-            // AI plays first available card
-            val aiCard = currentPlayer.hand.firstOrNull()
-            aiCard?.let {
-                engine.playCard(currentPlayer, it)
+            val ai = engine.getCurrentPlayer()
+            val card = ai.hand.firstOrNull()
+            card?.let {
+                engine.playCard(ai, it)
                 uiTrigger++
             }
         }
 
-        if (!engine.roundActive && !engine.isGameOver()) {
+        if (engine.phase == GamePhase.ROUND_END) {
             showRoundDialog = true
         }
     }
 
-    val localPlayer = engine.players.first()
+    val localPlayer = engine.players[0]
     val leftPlayer = engine.players[1]
     val topPlayer = engine.players[2]
     val rightPlayer = engine.players[3]
+
+    /* ================= ROUND END ================= */
 
     if (showRoundDialog) {
         AlertDialog(
@@ -66,11 +60,6 @@ fun Game400Screen(navController: NavHostController) {
                     engine.startNewRound()
                     uiTrigger++
                 }) { Text("جولة جديدة") }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = {
-                    navController.popBackStack()
-                }) { Text("العودة") }
             },
             title = { Text("انتهت الجولة") },
             text = {
@@ -83,7 +72,9 @@ fun Game400Screen(navController: NavHostController) {
         )
     }
 
-    if (engine.isGameOver()) {
+    /* ================= GAME OVER ================= */
+
+    if (engine.phase == GamePhase.GAME_OVER) {
         AlertDialog(
             onDismissRequest = {},
             confirmButton = {
@@ -92,9 +83,13 @@ fun Game400Screen(navController: NavHostController) {
                 }
             },
             title = { Text("🏆 انتهت اللعبة") },
-            text = { Text("الفائز: ${engine.gameWinner?.name}") }
+            text = {
+                Text("الفائز: ${engine.winner?.name ?: ""}")
+            }
         )
     }
+
+    /* ================= UI ================= */
 
     Column(
         modifier = Modifier
@@ -172,8 +167,11 @@ fun Game400Screen(navController: NavHostController) {
                     card = card,
                     isSelected = card == selectedCard,
                     onClick = {
-                        if (!engine.getCurrentPlayer().isAI())
+                        if (engine.phase == GamePhase.PLAYING &&
+                            !engine.isAITurn()
+                        ) {
                             selectedCard = card
+                        }
                     }
                 )
             }
@@ -192,8 +190,8 @@ fun Game400Screen(navController: NavHostController) {
             },
             enabled =
                 selectedCard != null &&
-                        !engine.getCurrentPlayer().isAI() &&
-                        engine.roundActive,
+                engine.phase == GamePhase.PLAYING &&
+                !engine.isAITurn(),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("لعب الورقة")
