@@ -10,7 +10,7 @@ object Game400Constants {
     val TRUMP_SUIT = Suit.HEARTS
 }
 
-/* ================= PURE GAME ENGINE ================= */
+/* ================= GAME ENGINE ================= */
 
 class Game400Engine(
     val players: List<Player>
@@ -18,10 +18,15 @@ class Game400Engine(
 
     private val deck = Deck()
 
+    /* ================= STATE ================= */
+
     var currentPlayerIndex = 0
         private set
 
     var trickNumber = 0
+        private set
+
+    var currentRound = 1
         private set
 
     val currentTrick = mutableListOf<Pair<Player, Card>>()
@@ -39,6 +44,8 @@ class Game400Engine(
     /* ================= START ROUND ================= */
 
     fun startNewRound() {
+
+        if (isGameOver()) return
 
         deck.reset()
 
@@ -61,6 +68,7 @@ class Game400Engine(
     fun playCard(player: Player, card: Card): Boolean {
 
         if (!roundActive) return false
+        if (isGameOver()) return false
         if (player != getCurrentPlayer()) return false
         if (!isValidPlay(player, card)) return false
 
@@ -130,8 +138,10 @@ class Game400Engine(
 
         players.forEach { it.applyRoundScore() }
 
-        checkGameWinner()
         roundActive = false
+        currentRound++
+
+        checkGameWinner()
     }
 
     private fun checkGameWinner() {
@@ -162,7 +172,29 @@ class Game400Engine(
         else true
     }
 
-    /* ================= GAME STATE ================= */
+    /* ================= NETWORK SUPPORT ================= */
+
+    fun forceSyncFromServer(serverEngine: Game400Engine) {
+
+        currentPlayerIndex = serverEngine.currentPlayerIndex
+        trickNumber = serverEngine.trickNumber
+        currentRound = serverEngine.currentRound
+        roundActive = serverEngine.roundActive
+        gameWinner = serverEngine.gameWinner
+
+        currentTrick.clear()
+        currentTrick.addAll(serverEngine.currentTrick)
+
+        serverEngine.players.forEach { serverPlayer ->
+
+            val localPlayer =
+                players.find { it.id == serverPlayer.id }
+
+            localPlayer?.updateFromNetwork(serverPlayer)
+        }
+    }
+
+    /* ================= STATUS ================= */
 
     fun isGameOver(): Boolean =
         gameWinner != null
