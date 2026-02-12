@@ -7,18 +7,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.example.tasalicool.network.NetworkActions
+import com.example.tasalicool.models.Game400Engine
 import com.example.tasalicool.network.NetworkGameClient
-import com.example.tasalicool.network.NetworkMessage
 
 @Composable
-fun JoinGameScreen(navController: NavHostController) {
+fun JoinGameScreen(
+    navController: NavHostController,
+    gameEngine: Game400Engine
+) {
 
     var ipAddress by remember { mutableStateOf("") }
     var statusText by remember { mutableStateOf("غير متصل") }
     var connected by remember { mutableStateOf(false) }
 
-    val client = remember { NetworkGameClient() }
+    val client = remember { NetworkGameClient(gameEngine) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -65,11 +67,6 @@ fun JoinGameScreen(navController: NavHostController) {
                     onConnected = {
                         statusText = "تم الاتصال بالسيرفر"
                         connected = true
-                    },
-
-                    onMessageReceived = { message ->
-                        statusText =
-                            "رسالة من السيرفر: ${message.action}"
                     },
 
                     onDisconnected = {
