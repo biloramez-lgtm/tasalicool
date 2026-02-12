@@ -47,7 +47,8 @@ class NetworkGameClient(
                     NetworkMessage(
                         playerId = playerId,
                         gameType = "GAME400",
-                        action = GameAction.JOIN
+                        action = GameAction.JOIN,
+                        data = null
                     )
                 )
 
@@ -74,7 +75,7 @@ class NetworkGameClient(
                     when (message.action) {
 
                         GameAction.UPDATE_GAME_STATE -> {
-                            applyGameState(message.data)
+                            message.data?.let { applyGameState(it) }
                         }
 
                         else -> {}
@@ -90,9 +91,7 @@ class NetworkGameClient(
 
     /* ================= APPLY STATE ================= */
 
-    private fun applyGameState(stateJson: String?) {
-
-        if (stateJson == null) return
+    private fun applyGameState(stateJson: String) {
 
         val serverEngine =
             gson.fromJson(stateJson, Game400Engine::class.java)
@@ -164,7 +163,8 @@ class NetworkGameClient(
             NetworkMessage(
                 playerId = playerId,
                 gameType = "GAME400",
-                action = GameAction.LEAVE
+                action = GameAction.LEAVE,
+                data = null
             )
         )
 
