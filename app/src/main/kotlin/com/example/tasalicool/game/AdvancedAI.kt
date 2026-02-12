@@ -4,10 +4,10 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
-object Game400AI {
+object AdvancedAI {
 
     /* =========================================================
-       🧠 Memory System (Elite)
+       🧠 Memory System
        ========================================================= */
 
     private val playedCards = mutableSetOf<Card>()
@@ -70,7 +70,7 @@ object Game400AI {
     }
 
     /* =========================================================
-       🧠 Hybrid Elite Decision
+       🧠 Decision Engine
        ========================================================= */
 
     fun chooseCard(
@@ -78,7 +78,7 @@ object Game400AI {
         controller: GameController
     ): Card {
 
-        val trick: List<Pair<Player, Card>> = controller.currentTrick
+        val trick = controller.currentTrick
         val validCards = getValidCards(player, trick)
 
         var bestCard = validCards.first()
@@ -111,7 +111,7 @@ object Game400AI {
     }
 
     /* =========================================================
-       🎲 Monte Carlo Light
+       🎲 Monte Carlo
        ========================================================= */
 
     private fun simulateFuture(player: Player, card: Card): Double {
@@ -155,9 +155,9 @@ object Game400AI {
     private fun buildRemainingDeck(player: Player, card: Card): List<Card> {
 
         val all =
-            Suit.values().flatMap { s ->
-                Rank.values().map { r ->
-                    Card(s, r)
+            Suit.values().flatMap { suit ->
+                Rank.values().map { rank ->
+                    Card(suit, rank)
                 }
             }
 
@@ -189,7 +189,6 @@ object Game400AI {
     }
 
     private fun stageFactor(controller: GameController): Double {
-
         return when {
             controller.roundNumber < 4 -> 0.3
             controller.roundNumber < 9 -> 0.7
@@ -241,14 +240,14 @@ object Game400AI {
 
         val leadSuit = trick.first().second.suit
 
-        val trumpCards =
-            trick.filter { it.second.isTrump() }
+        val trumpCards = trick.filter { it.second.isTrump() }
 
         return if (trumpCards.isNotEmpty())
             trumpCards.maxBy { it.second.rank.value }.first
         else
             trick.filter { it.second.suit == leadSuit }
-                .maxBy { it.second.rank.value }.first
+                .maxBy { it.second.rank.value }
+                .first
     }
 
     private fun getValidCards(
