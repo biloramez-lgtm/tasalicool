@@ -7,7 +7,7 @@ data class GameState(
     val players: List<Player> = emptyList(),
 
     val currentPlayerIndex: Int = 0,
-    val currentTrick: List<Pair<String, Card>> = emptyList(),
+    val currentTrick: List<Pair<Player, Card>> = emptyList()
 
     val trickNumber: Int = 0,
     val roundNumber: Int = 1,
