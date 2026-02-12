@@ -1,5 +1,6 @@
 package com.example.tasalicool.models
 
+import com.example.tasalicool.game.AdvancedAI
 import java.io.Serializable
 
 enum class GamePhase {
@@ -45,7 +46,9 @@ class Game400Engine(
 
         deck.reset()
 
-        // تدوير الموزع كل جولة
+        // Reset AI memory
+        AdvancedAI.resetMemory()
+
         dealerIndex = (dealerIndex + 1) % players.size
 
         players.forEach {
@@ -57,7 +60,6 @@ class Game400Engine(
         currentTrick.clear()
         lastTrickWinner = null
 
-        // يبدأ اللاعب يمين الموزع
         currentPlayerIndex = (dealerIndex + 1) % players.size
 
         phase = GamePhase.BIDDING
@@ -78,7 +80,6 @@ class Game400Engine(
 
         if (players.all { it.bid > 0 }) {
             phase = GamePhase.PLAYING
-            // يبدأ اللعب أيضاً من يمين الموزع
             currentPlayerIndex = (dealerIndex + 1) % players.size
         }
 
@@ -104,7 +105,10 @@ class Game400Engine(
         player.removeCard(card)
         currentTrick.add(player to card)
 
-        if (currentTrick.size == 4) {
+        // تسجيل في ذاكرة الذكاء
+        AdvancedAI.rememberCard(player, card)
+
+        if (currentTrick.size == players.size) {
             finishTrick()
         } else {
             nextPlayer()
@@ -122,13 +126,11 @@ class Game400Engine(
         currentPlayerIndex = players.indexOf(trickWinner)
 
         trickNumber++
-        // لا نمسح الأكلة هنا (مهم)
     }
 
-    /**
-     * تُستدعى من الـ UI بعد عرض الفائز وتأخير بسيط
-     */
     fun clearTrickAfterDelay() {
+
+        if (currentTrick.isEmpty()) return
 
         currentTrick.clear()
 
@@ -141,9 +143,8 @@ class Game400Engine(
 
         val leadSuit = currentTrick.first().second.suit
 
-        val trumpCards = currentTrick.filter {
-            it.second.suit == Suit.HEARTS
-        }
+        val trumpCards =
+            currentTrick.filter { it.second.suit == Suit.HEARTS }
 
         return if (trumpCards.isNotEmpty()) {
             trumpCards.maxBy { it.second.rank.value }.first
@@ -178,7 +179,6 @@ class Game400Engine(
             }
         }
 
-        // حساب النقاط
         players.forEach { it.applyRoundScore() }
 
         checkGameWinner()
@@ -196,6 +196,7 @@ class Game400Engine(
             if (player.score >= 41 && partner.score > 0) {
                 winner = player
                 phase = GamePhase.GAME_OVER
+                return
             }
         }
     }
@@ -212,7 +213,7 @@ class Game400Engine(
 
     private fun getPartner(player: Player): Player {
         val index = players.indexOf(player)
-        return players[(index + 2) % 4]
+        return players[(index + 2) % players.size]
     }
 
     companion object {
