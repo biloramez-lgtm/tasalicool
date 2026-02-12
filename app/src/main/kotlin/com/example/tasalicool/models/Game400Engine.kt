@@ -36,11 +36,11 @@ class Game400Engine(
     /* ================= ROUND ================= */
 
     fun startNewRound() {
+
         deck.reset()
 
         players.forEach {
             it.resetForNewRound()
-            it.hand.clear()
             it.addCards(deck.drawCards(13))
         }
 
@@ -64,6 +64,7 @@ class Game400Engine(
         player.bid = bid
         nextPlayer()
 
+        // إذا الجميع طلب
         if (players.all { it.bid > 0 }) {
             phase = GamePhase.PLAYING
             currentPlayerIndex = 0
@@ -101,10 +102,10 @@ class Game400Engine(
 
     private fun finishTrick() {
 
-        val winnerPlayer = determineTrickWinner()
-        winnerPlayer.tricksWon++
+        val trickWinner = determineTrickWinner()
+        trickWinner.incrementTrick()
 
-        currentPlayerIndex = players.indexOf(winnerPlayer)
+        currentPlayerIndex = players.indexOf(trickWinner)
         currentTrick.clear()
         trickNumber++
 
@@ -116,6 +117,7 @@ class Game400Engine(
 
         val leadSuit = currentTrick.first().second.suit
 
+        // الحكم ثابت ♥
         val trumpCards = currentTrick.filter {
             it.second.suit == Suit.HEARTS
         }
@@ -144,19 +146,17 @@ class Game400Engine(
 
     private fun finishRound() {
 
+        // كبوت (13 ناجحة)
         players.forEach { player ->
-
             if (player.bid == 13 && player.tricksWon == 13) {
                 winner = player
                 phase = GamePhase.GAME_OVER
                 return
             }
-
-            if (player.tricksWon >= player.bid)
-                player.score += player.bid
-            else
-                player.score -= player.bid
         }
+
+        // حساب النقاط عبر Player نفسه
+        players.forEach { it.applyRoundScore() }
 
         checkGameWinner()
 
@@ -196,9 +196,9 @@ class Game400Engine(
         fun initializeDefaultPlayers(): MutableList<Player> {
             return mutableListOf(
                 Player(name = "You", teamId = 1),
-                Player(name = "AI 1", teamId = 2),
-                Player(name = "AI 2", teamId = 1),
-                Player(name = "AI 3", teamId = 2)
+                Player(name = "AI 1", type = PlayerType.AI, teamId = 2),
+                Player(name = "AI 2", type = PlayerType.AI, teamId = 1),
+                Player(name = "AI 3", type = PlayerType.AI, teamId = 2)
             )
         }
     }
