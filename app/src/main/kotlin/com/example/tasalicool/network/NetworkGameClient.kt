@@ -1,7 +1,6 @@
 package com.example.tasalicool.network
 
 import com.example.tasalicool.models.*
-import com.google.gson.Gson
 import kotlinx.coroutines.*
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -16,12 +15,11 @@ class NetworkGameClient(
     private var input: DataInputStream? = null
     private var output: DataOutputStream? = null
 
-    private val gson = Gson()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private val isConnected = AtomicBoolean(false)
 
-    var playerId: String = "Player_${System.currentTimeMillis()}"
+    var playerId: String = "P_${System.currentTimeMillis()}"
 
     /* ================= CONNECT ================= */
 
@@ -46,9 +44,7 @@ class NetworkGameClient(
                 sendMessage(
                     NetworkMessage(
                         playerId = playerId,
-                        gameType = "GAME400",
-                        action = GameAction.JOIN,
-                        data = null
+                        action = GameAction.JOIN
                     )
                 )
 
@@ -69,18 +65,22 @@ class NetworkGameClient(
                 while (isActive && isConnected.get()) {
 
                     val json = input?.readUTF() ?: break
-                    val message =
-                        gson.fromJson(json, NetworkMessage::class.java)
+                    val message = NetworkMessage.fromJson(json)
 
                     when (message.action) {
 
-                        GameAction.UPDATE_GAME_STATE -> {
-                            message.data?.let { applyGameState(it) }
+                        GameAction.SYNC_STATE -> {
+                            message.payload?.let { applyGameState(it) }
+                        }
+
+                        GameAction.PONG -> {
+                            // اتصال سليم
                         }
 
                         else -> {}
                     }
                 }
+
             } catch (_: Exception) {
             } finally {
                 disconnectInternal()
@@ -94,9 +94,11 @@ class NetworkGameClient(
     private fun applyGameState(stateJson: String) {
 
         val serverEngine =
-            gson.fromJson(stateJson, Game400Engine::class.java)
+            NetworkMessage.gson.fromJson(
+                stateJson,
+                Game400Engine::class.java
+            )
 
-        // تحديث القيم الأساسية
         gameEngine.currentPlayerIndex =
             serverEngine.currentPlayerIndex
 
@@ -109,15 +111,12 @@ class NetworkGameClient(
         gameEngine.gameWinner =
             serverEngine.gameWinner
 
-        // تحديث اللاعبين
         serverEngine.players.forEach { serverPlayer ->
 
             val localPlayer =
                 gameEngine.players.find { it.id == serverPlayer.id }
 
-            if (localPlayer != null) {
-                localPlayer.updateFromNetwork(serverPlayer)
-            }
+            localPlayer?.updateFromNetwork(serverPlayer)
         }
 
         gameEngine.currentTrick.clear()
@@ -128,12 +127,24 @@ class NetworkGameClient(
 
     fun playCard(card: Card) {
 
+        if (!isConnected.get()) return
+
         sendMessage(
             NetworkMessage(
                 playerId = playerId,
-                gameType = "GAME400",
                 action = GameAction.PLAY_CARD,
-                data = card.toString()
+                payload = card.toString()
+            )
+        )
+    }
+
+    /* ================= REQUEST SYNC ================= */
+
+    fun requestSync() {
+        sendMessage(
+            NetworkMessage(
+                playerId = playerId,
+                action = GameAction.REQUEST_SYNC
             )
         )
     }
@@ -141,11 +152,12 @@ class NetworkGameClient(
     /* ================= SEND ================= */
 
     private fun sendMessage(message: NetworkMessage) {
+
         if (!isConnected.get()) return
 
         scope.launch {
             try {
-                val json = gson.toJson(message)
+                val json = NetworkMessage.toJson(message)
                 output?.writeUTF(json)
                 output?.flush()
             } catch (_: Exception) {
@@ -162,9 +174,7 @@ class NetworkGameClient(
         sendMessage(
             NetworkMessage(
                 playerId = playerId,
-                gameType = "GAME400",
-                action = GameAction.LEAVE,
-                data = null
+                action = GameAction.LEAVE
             )
         )
 
