@@ -84,7 +84,9 @@ class GameController(
 
         val player = players[currentPlayerIndex]
 
-        if (!player.isHuman) {
+        // AI plays only if player is NOT human
+        if (!player.isHuman()) {
+
             val chosenCard =
                 AdvancedAI.chooseCard(player, this)
 
