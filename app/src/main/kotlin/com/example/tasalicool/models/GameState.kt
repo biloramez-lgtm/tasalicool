@@ -17,6 +17,7 @@ data class GameState(
 
 ) : Serializable {
 
+    @Transient
     private val gson = Gson()
 
     /* ===================================================== */
