@@ -43,42 +43,44 @@ fun TasalicoolNavGraph(
     navController: NavHostController
 ) {
 
+    // 🔥 أنشئ محرك واحد مشترك للتطبيق
+    val gameEngine = remember { Game400Engine() }
+
     NavHost(
         navController = navController,
         startDestination = "home"
     ) {
 
-        /* ================= HOME ================= */
         composable("home") {
             HomeScreen(navController)
         }
 
-        /* ================= GAME 400 ================= */
         composable("game_400") {
             Game400Screen(navController)
         }
 
-        /* ================= RESUME GAME ================= */
         composable("resume_game") {
             Game400Screen(navController)
         }
 
-        /* ================= ABOUT ================= */
         composable("about") {
             AboutScreen(navController)
         }
 
-        /* ================= WIFI LOCAL HOST ================= */
         composable("host_game") {
-            HostGameScreen(navController)
+            HostGameScreen(
+                navController = navController,
+                gameEngine = gameEngine
+            )
         }
 
-        /* ================= WIFI LOCAL JOIN ================= */
         composable("join_game") {
-            JoinGameScreen(navController)
+            JoinGameScreen(
+                navController = navController,
+                gameEngine = gameEngine
+            )
         }
 
-        /* ================= OTHER PLACEHOLDERS ================= */
         composable("solitaire") {
             PlaceholderScreen("Solitaire", navController)
         }
