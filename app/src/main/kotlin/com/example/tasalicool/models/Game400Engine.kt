@@ -11,9 +11,22 @@ object Game400Constants {
     val TRUMP_SUIT = Suit.HEARTS
 }
 
+/* ================= NETWORK LISTENER ================= */
+
+interface GameEventListener {
+    fun onCardsDealt(players: List<Player>)
+    fun onCardPlayed(player: Player, card: Card)
+    fun onTrickFinished(winner: Player, trickNumber: Int)
+    fun onRoundFinished(players: List<Player>)
+    fun onGameFinished(winner: Player)
+}
+
+/* ================= ENGINE ================= */
+
 class Game400Engine(
     context: Context,
-    val players: List<Player>
+    val players: List<Player>,
+    private val listener: GameEventListener? = null
 ) : Serializable {
 
     @Transient
@@ -50,9 +63,12 @@ class Game400Engine(
         currentPlayerIndex = 0
         roundActive = true
         currentTrick.clear()
+
+        // 🔥 notify network
+        listener?.onCardsDealt(players)
     }
 
-    /* ================= DRAW CARDS SAFE ================= */
+    /* ================= DRAW SAFE ================= */
 
     private fun drawCards(count: Int): List<Card> {
         val list = mutableListOf<Card>()
@@ -94,6 +110,9 @@ class Game400Engine(
         player.removeCard(card)
         currentTrick.add(player to card)
 
+        // 🔥 notify network
+        listener?.onCardPlayed(player, card)
+
         if (currentTrick.size == 4)
             finishTrick()
         else
@@ -114,14 +133,19 @@ class Game400Engine(
 
     private fun finishTrick() {
 
-        val winner = determineTrickWinner() ?: return
-        winner.first.incrementTrick()
+        val winnerPair = determineTrickWinner() ?: return
+        val winner = winnerPair.first
+
+        winner.incrementTrick()
 
         currentPlayerIndex =
-            players.indexOf(winner.first)
+            players.indexOf(winner)
 
         currentTrick.clear()
         trickNumber++
+
+        // 🔥 notify network
+        listener?.onTrickFinished(winner, trickNumber)
 
         if (trickNumber >= Game400Constants.CARDS_PER_PLAYER)
             finishRound()
@@ -152,14 +176,18 @@ class Game400Engine(
 
         players.forEach { it.applyRoundScore() }
 
+        listener?.onRoundFinished(players)
+
         checkGameWinner()
         roundActive = false
     }
 
     private fun checkGameWinner() {
         players.forEach {
-            if (it.score >= Game400Constants.WIN_SCORE)
+            if (it.score >= Game400Constants.WIN_SCORE) {
                 gameWinner = it
+                listener?.onGameFinished(it)
+            }
         }
     }
 
