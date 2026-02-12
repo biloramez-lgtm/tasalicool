@@ -1,6 +1,7 @@
 package com.example.tasalicool.models
 
 import com.example.tasalicool.game.AdvancedAI
+import com.example.tasalicool.game.GameMode
 import java.io.Serializable
 
 enum class GamePhase {
@@ -11,7 +12,9 @@ enum class GamePhase {
 }
 
 class Game400Engine(
-    val players: MutableList<Player> = initializeDefaultPlayers()
+    var gameMode: GameMode = GameMode.SINGLE_PLAYER,
+    humanCount: Int = 1,
+    val players: MutableList<Player> = initializePlayers(gameMode, humanCount)
 ) : Serializable {
 
     private val deck = Deck()
@@ -46,7 +49,7 @@ class Game400Engine(
 
         deck.reset()
 
-        // Reset AI memory
+        // دائماً نعيد ذاكرة AI
         AdvancedAI.resetMemory()
 
         dealerIndex = (dealerIndex + 1) % players.size
@@ -60,8 +63,8 @@ class Game400Engine(
         currentTrick.clear()
         lastTrickWinner = null
 
+        // يبدأ اللاعب يمين الموزع
         currentPlayerIndex = (dealerIndex + 1) % players.size
-
         phase = GamePhase.BIDDING
     }
 
@@ -105,8 +108,10 @@ class Game400Engine(
         player.removeCard(card)
         currentTrick.add(player to card)
 
-        // تسجيل في ذاكرة الذكاء
-        AdvancedAI.rememberCard(player, card)
+        // تسجيل للذكاء فقط إذا اللاعب AI
+        if (player.type == PlayerType.AI) {
+            AdvancedAI.rememberCard(player, card)
+        }
 
         if (currentTrick.size == players.size) {
             finishTrick()
@@ -166,11 +171,16 @@ class Game400Engine(
         return if (hasSuit) card.suit == leadSuit else true
     }
 
+    /* ================= AI CHECK ================= */
+
+    fun isAITurn(): Boolean {
+        return getCurrentPlayer().type == PlayerType.AI
+    }
+
     /* ================= SCORING ================= */
 
     private fun finishRound() {
 
-        // كبوت ناجحة
         players.forEach { player ->
             if (player.bid == 13 && player.tricksWon == 13) {
                 winner = player
@@ -218,13 +228,49 @@ class Game400Engine(
 
     companion object {
 
-        fun initializeDefaultPlayers(): MutableList<Player> {
-            return mutableListOf(
-                Player(name = "You", teamId = 1),
-                Player(name = "AI 1", type = PlayerType.AI, teamId = 2),
-                Player(name = "AI 2", type = PlayerType.AI, teamId = 1),
-                Player(name = "AI 3", type = PlayerType.AI, teamId = 2)
-            )
+        fun initializePlayers(
+            mode: GameMode,
+            humanCount: Int = 1
+        ): MutableList<Player> {
+
+            val players = mutableListOf<Player>()
+            val totalPlayers = 4
+
+            val humans = when (mode) {
+                GameMode.SINGLE_PLAYER -> 1
+                GameMode.LOCAL_MULTIPLAYER -> humanCount
+                GameMode.WIFI_MULTIPLAYER -> humanCount
+            }
+
+            val aiCount = totalPlayers - humans
+
+            var index = 0
+
+            // إضافة البشر
+            for (i in 1..humans) {
+                players.add(
+                    Player(
+                        name = "Player $i",
+                        type = PlayerType.HUMAN,
+                        teamId = if (index % 2 == 0) 1 else 2
+                    )
+                )
+                index++
+            }
+
+            // إضافة AI لتعويض النقص
+            for (i in 1..aiCount) {
+                players.add(
+                    Player(
+                        name = "AI $i",
+                        type = PlayerType.AI,
+                        teamId = if (index % 2 == 0) 1 else 2
+                    )
+                )
+                index++
+            }
+
+            return players
         }
     }
 }
