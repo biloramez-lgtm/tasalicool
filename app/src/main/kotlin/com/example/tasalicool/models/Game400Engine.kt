@@ -5,6 +5,48 @@ import android.os.Handler
 import android.os.Looper
 import java.io.Serializable
 
+// ===== DECK CLASS =====
+data class Deck(
+    val cards: MutableList<Card> = createFullDeck().toMutableList()
+) : Serializable {
+
+    init {
+        shuffle()
+    }
+
+    fun reset() {
+        cards.clear()
+        cards.addAll(createFullDeck())
+        shuffle()
+    }
+
+    fun shuffle() {
+        cards.shuffle()
+    }
+
+    fun drawCard(): Card? {
+        return if (cards.isNotEmpty()) cards.removeAt(0) else null
+    }
+
+    fun drawCards(count: Int): List<Card> {
+        val result = mutableListOf<Card>()
+        repeat(count) {
+            drawCard()?.let { result.add(it) }
+        }
+        return result
+    }
+
+    companion object {
+        fun createFullDeck(): List<Card> {
+            return Suit.values().flatMap { suit ->
+                Rank.values().map { rank ->
+                    Card(suit, rank)
+                }
+            }
+        }
+    }
+}
+
 object Game400Constants {
     const val CARDS_PER_PLAYER = 13
     const val WIN_SCORE = 41
@@ -24,16 +66,16 @@ interface GameEventListener {
 /* ================= ENGINE ================= */
 
 class Game400Engine(
-    context: Context,
-    val players: List<Player>,
+    context: Context? = null,
+    val players: List<Player> = listOf(),
     private val listener: GameEventListener? = null
 ) : Serializable {
 
     @Transient
-    private val appContext: Context = context.applicationContext
+    private var appContext: Context? = context?.applicationContext
 
     @Transient
-    private val handler = Handler(Looper.getMainLooper())
+    private var handler: Handler? = if (context != null) Handler(Looper.getMainLooper()) else null
 
     val deck = Deck()
 
@@ -92,7 +134,7 @@ class Game400Engine(
             playCard(current, card)
 
             if (roundActive && !getCurrentPlayer().isLocal) {
-                handler.postDelayed({
+                handler?.postDelayed({
                     playAITurnIfNeeded()
                 }, 400)
             }
