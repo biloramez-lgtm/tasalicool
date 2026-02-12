@@ -1,9 +1,9 @@
 package com.example.tasalicool.game
 
+import com.example.tasalicool.models.*
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
-import com.example.tasalicool.models.*
 
 object AdvancedAI {
 
