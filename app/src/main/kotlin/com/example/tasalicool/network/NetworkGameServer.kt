@@ -21,9 +21,7 @@ class NetworkGameServer(private val port: Int = 5000) {
     private val isRunning = AtomicBoolean(false)
     private val playerCounter = AtomicInteger(1)
 
-    /* ===================================================== */
-    /* ================= START SERVER ====================== */
-    /* ===================================================== */
+    /* ================= START SERVER ================= */
 
     fun startServer(
         onClientConnected: (String) -> Unit = {},
@@ -42,30 +40,22 @@ class NetworkGameServer(private val port: Int = 5000) {
                 while (isActive && isRunning.get()) {
 
                     val socket = serverSocket?.accept() ?: continue
-
                     val playerId = "Player_${playerCounter.getAndIncrement()}"
-                    val client = ClientConnection(socket, playerId)
 
+                    val client = ClientConnection(socket, playerId)
                     clients.add(client)
 
-                    println("✅ Client connected: $playerId")
                     onClientConnected(playerId)
 
-                    // إعلام الجميع بانضمام لاعب
                     broadcastMessage(
                         NetworkMessage(
                             playerId = playerId,
                             gameType = "TASALI",
-                            action = NetworkActions.PLAYER_JOINED,
-                            data = null
+                            action = NetworkActions.PLAYER_JOINED
                         )
                     )
 
-                    listenToClient(
-                        client,
-                        onClientDisconnected,
-                        onMessageReceived
-                    )
+                    listenToClient(client, onClientDisconnected, onMessageReceived)
                 }
 
             } catch (e: Exception) {
@@ -74,9 +64,7 @@ class NetworkGameServer(private val port: Int = 5000) {
         }
     }
 
-    /* ===================================================== */
-    /* ================= LISTEN TO CLIENT ================== */
-    /* ===================================================== */
+    /* ================= LISTEN ================= */
 
     private fun listenToClient(
         client: ClientConnection,
@@ -88,46 +76,23 @@ class NetworkGameServer(private val port: Int = 5000) {
                 while (isActive && isRunning.get()) {
 
                     val json = client.input.readUTF()
-                    val message =
-                        gson.fromJson(json, NetworkMessage::class.java)
+                    val message = gson.fromJson(json, NetworkMessage::class.java)
 
                     onMessageReceived(message)
 
                     when (message.action) {
 
-                        // توزيع أوراق
-                        NetworkActions.DEAL_CARDS -> {
-                            broadcastMessage(
-                                message,
-                                excludePlayer = null
-                            )
-                        }
-
-                        // لعب ورقة
-                        NetworkActions.PLAY_CARD -> {
-                            broadcastMessage(
-                                message,
-                                excludePlayer = client.playerId
-                            )
-                        }
-
-                        // تحديث حالة اللعبة
-                        NetworkActions.GAME_STATE_UPDATE -> {
-                            broadcastMessage(
-                                message,
-                                excludePlayer = client.playerId
-                            )
-                        }
-
-                        // رسائل دردشة
+                        NetworkActions.PLAY_CARD,
+                        NetworkActions.GAME_STATE_UPDATE,
+                        NetworkActions.DEAL_CARDS,
                         NetworkActions.MESSAGE -> {
+
                             broadcastMessage(
                                 message,
-                                excludePlayer = null
+                                excludePlayer = client.playerId
                             )
                         }
 
-                        // مغادرة
                         NetworkActions.PLAYER_LEFT -> {
                             removeClient(client, onClientDisconnected)
                         }
@@ -142,9 +107,7 @@ class NetworkGameServer(private val port: Int = 5000) {
         }
     }
 
-    /* ===================================================== */
-    /* ================= BROADCAST ========================= */
-    /* ===================================================== */
+    /* ================= BROADCAST ================= */
 
     fun broadcastMessage(
         message: NetworkMessage,
@@ -158,32 +121,13 @@ class NetworkGameServer(private val port: Int = 5000) {
             try {
                 client.output.writeUTF(json)
                 client.output.flush()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 removeClient(client) {}
             }
         }
     }
 
-    /* ===================================================== */
-    /* ================= SEND TO ONE PLAYER ================= */
-    /* ===================================================== */
-
-    fun sendToPlayer(playerId: String, message: NetworkMessage) {
-        val json = gson.toJson(message)
-
-        clients.find { it.playerId == playerId }?.let { client ->
-            try {
-                client.output.writeUTF(json)
-                client.output.flush()
-            } catch (e: Exception) {
-                removeClient(client) {}
-            }
-        }
-    }
-
-    /* ===================================================== */
-    /* ================= REMOVE CLIENT ===================== */
-    /* ===================================================== */
+    /* ================= REMOVE ================= */
 
     private fun removeClient(
         client: ClientConnection,
@@ -193,23 +137,18 @@ class NetworkGameServer(private val port: Int = 5000) {
 
         try { client.socket.close() } catch (_: Exception) {}
 
-        println("🚪 Client disconnected: ${client.playerId}")
-
         broadcastMessage(
             NetworkMessage(
                 playerId = client.playerId,
                 gameType = "TASALI",
-                action = NetworkActions.PLAYER_LEFT,
-                data = null
+                action = NetworkActions.PLAYER_LEFT
             )
         )
 
         onClientDisconnected(client.playerId)
     }
 
-    /* ===================================================== */
-    /* ================= STOP SERVER ======================= */
-    /* ===================================================== */
+    /* ================= STOP ================= */
 
     fun stopServer() {
         isRunning.set(false)
@@ -220,14 +159,10 @@ class NetworkGameServer(private val port: Int = 5000) {
         }
 
         try { serverSocket?.close() } catch (_: Exception) {}
-
-        println("🛑 Server stopped")
     }
 }
 
-/* ====================================================== */
-/* ================= CLIENT CONNECTION ================== */
-/* ====================================================== */
+/* ================= CLIENT CONNECTION ================= */
 
 data class ClientConnection(
     val socket: Socket,
