@@ -3,6 +3,7 @@ package com.example.tasalicool.models
 import com.example.tasalicool.game.AdvancedAI
 import com.example.tasalicool.game.GameMode
 import java.io.Serializable
+import java.util.UUID
 
 enum class GamePhase {
     BIDDING,
@@ -48,8 +49,6 @@ class Game400Engine(
     fun startNewRound() {
 
         deck.reset()
-
-        // دائماً نعيد ذاكرة AI
         AdvancedAI.resetMemory()
 
         dealerIndex = (dealerIndex + 1) % players.size
@@ -63,7 +62,6 @@ class Game400Engine(
         currentTrick.clear()
         lastTrickWinner = null
 
-        // يبدأ اللاعب يمين الموزع
         currentPlayerIndex = (dealerIndex + 1) % players.size
         phase = GamePhase.BIDDING
     }
@@ -75,7 +73,12 @@ class Game400Engine(
         if (phase != GamePhase.BIDDING) return false
         if (player != getCurrentPlayer()) return false
 
-        val minBid = minimumBidFor(player)
+        val minBid = when {
+            player.score < 30 -> 2
+            player.score < 40 -> 3
+            else -> 4
+        }
+
         if (bid < minBid || bid > 13) return false
 
         player.bid = bid
@@ -89,14 +92,6 @@ class Game400Engine(
         return true
     }
 
-    private fun minimumBidFor(player: Player): Int {
-        return when {
-            player.score < 30 -> 2
-            player.score < 40 -> 3
-            else -> 4
-        }
-    }
-
     /* ================= PLAY ================= */
 
     fun playCard(player: Player, card: Card): Boolean {
@@ -108,7 +103,6 @@ class Game400Engine(
         player.removeCard(card)
         currentTrick.add(player to card)
 
-        // تسجيل للذكاء فقط إذا اللاعب AI
         if (player.type == PlayerType.AI) {
             AdvancedAI.rememberCard(player, card)
         }
@@ -171,7 +165,7 @@ class Game400Engine(
         return if (hasSuit) card.suit == leadSuit else true
     }
 
-    /* ================= AI CHECK ================= */
+    /* ================= AI ================= */
 
     fun isAITurn(): Boolean {
         return getCurrentPlayer().type == PlayerType.AI
@@ -191,23 +185,39 @@ class Game400Engine(
 
         players.forEach { it.applyRoundScore() }
 
-        checkGameWinner()
+        players.forEach { player ->
+            val partner = getPartner(player)
+            if (player.score >= 41 && partner.score > 0) {
+                winner = player
+                phase = GamePhase.GAME_OVER
+                return
+            }
+        }
 
         if (phase != GamePhase.GAME_OVER) {
             phase = GamePhase.ROUND_END
         }
     }
 
-    private fun checkGameWinner() {
+    /* ================= WIFI SYNC ================= */
 
-        players.forEach { player ->
-            val partner = getPartner(player)
+    fun forceSyncFromServer(server: Game400Engine) {
 
-            if (player.score >= 41 && partner.score > 0) {
-                winner = player
-                phase = GamePhase.GAME_OVER
-                return
-            }
+        this.phase = server.phase
+        this.currentPlayerIndex = server.currentPlayerIndex
+        this.dealerIndex = server.dealerIndex
+        this.trickNumber = server.trickNumber
+
+        this.currentTrick.clear()
+        this.currentTrick.addAll(server.currentTrick)
+
+        this.lastTrickWinner = server.lastTrickWinner
+        this.winner = server.winner
+
+        // مزامنة اللاعبين
+        this.players.clear()
+        server.players.forEach { serverPlayer ->
+            this.players.add(serverPlayer)
         }
     }
 
@@ -246,10 +256,10 @@ class Game400Engine(
 
             var index = 0
 
-            // إضافة البشر
             for (i in 1..humans) {
                 players.add(
                     Player(
+                        id = UUID.randomUUID().toString(),
                         name = "Player $i",
                         type = PlayerType.HUMAN,
                         teamId = if (index % 2 == 0) 1 else 2
@@ -258,10 +268,10 @@ class Game400Engine(
                 index++
             }
 
-            // إضافة AI لتعويض النقص
             for (i in 1..aiCount) {
                 players.add(
                     Player(
+                        id = UUID.randomUUID().toString(),
                         name = "AI $i",
                         type = PlayerType.AI,
                         teamId = if (index % 2 == 0) 1 else 2
