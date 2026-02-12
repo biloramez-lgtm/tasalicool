@@ -31,8 +31,6 @@ data class Player(
     var bid: Int = 0,
     var tricksWon: Int = 0,
     var teamId: Int = 0,
-
-    var difficulty: AIDifficulty = AIDifficulty.NORMAL,
     var rating: Int = 1200
 
 ) : Serializable {
