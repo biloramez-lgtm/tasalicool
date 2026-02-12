@@ -120,6 +120,38 @@ data class Player(
     }
 
     /* ===================================================== */
+    /* ================= NETWORK SUPPORT =================== */
+    /* ===================================================== */
+
+    /**
+     * تحديث اللاعب من بيانات السيرفر
+     * السيرفر هو المصدر الوحيد للحقيقة
+     */
+    fun updateFromNetwork(serverPlayer: Player) {
+
+        score = serverPlayer.score
+        bid = serverPlayer.bid
+        tricksWon = serverPlayer.tricksWon
+        teamId = serverPlayer.teamId
+        difficulty = serverPlayer.difficulty
+        rating = serverPlayer.rating
+
+        // تحديث اليد بالكامل
+        hand.clear()
+        hand.addAll(serverPlayer.hand)
+        sortHand()
+    }
+
+    /**
+     * نسخة آمنة للحالة لإرسالها عبر الشبكة
+     */
+    fun cloneState(): Player {
+        return copy(
+            hand = hand.toMutableList()
+        )
+    }
+
+    /* ===================================================== */
     /* ================= AI HELPERS ======================== */
     /* ===================================================== */
 
