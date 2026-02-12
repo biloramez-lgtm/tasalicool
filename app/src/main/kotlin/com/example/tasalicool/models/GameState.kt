@@ -110,7 +110,7 @@ data class GameState(
     }
 
     /* ===================================================== */
-    /* ================= APPLY NETWORK MESSAGE ============= */
+    /* ================= APPLY NETWORK ===================== */
     /* ===================================================== */
 
     fun applyNetworkMessage(message: NetworkMessage) {
@@ -120,14 +120,12 @@ data class GameState(
             GameAction.UPDATE_GAME_STATE,
             GameAction.SYNC_STATE -> {
 
-                message.data?.let { json ->
+                message.payload?.let { json ->
                     applyFullNetworkState(json)
                 }
             }
 
-            else -> {
-                // يمكن إضافة أنواع أخرى لاحقاً
-            }
+            else -> {}
         }
     }
 
@@ -158,7 +156,7 @@ data class GameState(
     }
 
     /* ===================================================== */
-    /* ================= TRICK EVALUATION ================== */
+    /* ================= TRICK ============================= */
     /* ===================================================== */
 
     private fun evaluateTrick() {
@@ -194,6 +192,10 @@ data class GameState(
         checkGameWinner()
     }
 
+    /* ===================================================== */
+    /* ================= DEAL CARDS ======================== */
+    /* ===================================================== */
+
     private fun dealCards(cardsPerPlayer: Int = 5) {
 
         players.forEach { player ->
@@ -201,6 +203,10 @@ data class GameState(
             player.addCards(drawn)
         }
     }
+
+    /* ===================================================== */
+    /* ================= HELPERS =========================== */
+    /* ===================================================== */
 
     fun isRoundFinished(): Boolean {
         if (players.isEmpty()) return true
@@ -239,7 +245,7 @@ data class GameState(
     }
 
     /* ===================================================== */
-    /* ================= MESSAGE HELPERS =================== */
+    /* ================= NETWORK MESSAGES ================== */
     /* ===================================================== */
 
     private fun createStateUpdateMessage(): NetworkMessage {
@@ -247,7 +253,8 @@ data class GameState(
             playerId = "HOST",
             gameType = "TASALI",
             action = GameAction.UPDATE_GAME_STATE,
-            data = gson.toJson(toNetworkSafeCopy())
+            payload = gson.toJson(toNetworkSafeCopy()),
+            round = roundNumber
         )
     }
 
@@ -259,7 +266,8 @@ data class GameState(
             playerId = "HOST",
             gameType = "TASALI",
             action = action,
-            data = text
+            payload = text,
+            round = roundNumber
         )
     }
 
