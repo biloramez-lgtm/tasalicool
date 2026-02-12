@@ -83,7 +83,7 @@ object Game400AI {
         gameState: GameState
     ): Card {
 
-        val trick = gameState.currentTrick
+        val trick: List<Pair<Player, Card>> = gameState.currentTrick
         val validCards = getValidCards(player, trick)
 
         var bestCard = validCards.first()
