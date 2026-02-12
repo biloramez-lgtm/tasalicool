@@ -1,5 +1,7 @@
 package com.example.tasalicool.game
 
+import com.example.tasalicool.models.*
+
 class GameController(
     val players: MutableList<Player>
 ) {
