@@ -5,14 +5,6 @@ import com.example.tasalicool.game.GameMode
 import java.io.Serializable
 import java.util.UUID
 
-enum class GamePhase {
-    WAITING_FOR_PLAYERS,
-    BIDDING,
-    PLAYING,
-    ROUND_END,
-    GAME_OVER
-}
-
 class Game400Engine(
     var gameMode: GameMode = GameMode.SINGLE_PLAYER,
     humanCount: Int = 1,
