@@ -13,9 +13,9 @@ object Game400Constants {
 /* ================= GAME ENGINE ================= */
 
 class Game400Engine(
-    val players: List<Player>
+    val players: MutableList<Player> = initializeDefaultPlayers()
 ) : Serializable {
-
+    
     private val deck = Deck()
 
     /* ================= STATE ================= */
@@ -198,4 +198,18 @@ class Game400Engine(
 
     fun isGameOver(): Boolean =
         gameWinner != null
+
+    /* ================= DEFAULT PLAYERS ================= */
+
+    companion object {
+
+        fun initializeDefaultPlayers(): MutableList<Player> {
+            return mutableListOf(
+                Player(name = "You", type = PlayerType.HUMAN),
+                Player(name = "AI 1", type = PlayerType.AI),
+                Player(name = "AI 2", type = PlayerType.AI),
+                Player(name = "AI 3", type = PlayerType.AI)
+            )
+        }
+    }
 }
