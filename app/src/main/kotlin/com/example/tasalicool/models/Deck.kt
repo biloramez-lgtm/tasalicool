@@ -7,6 +7,8 @@ data class Deck(
     val cards: MutableList<Card> = mutableListOf()
 ) : Serializable {
 
+    private var lastSeed: Long = 0L
+
     init {
         if (cards.isEmpty()) {
             reset()
@@ -15,7 +17,14 @@ data class Deck(
 
     /* ================= RESET ================= */
 
-    fun reset() {
+    /**
+     * السيرفر يمكنه تمرير seed محدد
+     * لضمان نفس التوزيع على جميع الأجهزة
+     */
+    fun reset(seed: Long = System.currentTimeMillis()) {
+
+        lastSeed = seed
+
         cards.clear()
 
         for (suit in Suit.values()) {
@@ -24,14 +33,20 @@ data class Deck(
             }
         }
 
-        shuffle()
+        shuffle(seed)
     }
 
     /* ================= SHUFFLE ================= */
 
-    fun shuffle() {
-        cards.shuffle(Random(System.currentTimeMillis()))
+    private fun shuffle(seed: Long) {
+        cards.shuffle(Random(seed))
     }
+
+    /**
+     * يسمح بمعرفة seed المستخدم
+     * لإعادة بناء الجولة عند الحاجة
+     */
+    fun getLastSeed(): Long = lastSeed
 
     /* ================= DRAW ================= */
 
@@ -44,6 +59,7 @@ data class Deck(
     }
 
     fun drawCards(count: Int): List<Card> {
+
         val safeCount = count.coerceAtMost(cards.size)
         val drawnCards = mutableListOf<Card>()
 
