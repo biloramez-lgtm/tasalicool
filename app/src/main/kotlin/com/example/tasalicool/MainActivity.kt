@@ -6,15 +6,12 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
-import com.example.tasalicool.models.Game400Engine
-import com.example.tasalicool.models.GameState
 import com.example.tasalicool.ui.screens.*
 import com.example.tasalicool.ui.theme.TasalicoolTheme
 
@@ -30,10 +27,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    // ✅ إنشاء gameState واحد للتطبيق كله
-                    val gameState = remember { GameState() }
-                    
-                    TasalicoolNavGraph(navController, gameState)
+                    TasalicoolNavGraph(navController)
                 }
             }
         }
@@ -46,8 +40,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun TasalicoolNavGraph(
-    navController: NavHostController,
-    gameState: GameState
+    navController: NavHostController
 ) {
 
     NavHost(
@@ -62,12 +55,12 @@ fun TasalicoolNavGraph(
 
         /* ================= GAME 400 ================= */
         composable("game_400") {
-            Game400Screen(navController, gameState)
+            Game400Screen(navController)
         }
 
         /* ================= RESUME GAME ================= */
         composable("resume_game") {
-            Game400Screen(navController, gameState)
+            Game400Screen(navController)
         }
 
         /* ================= ABOUT ================= */
@@ -77,12 +70,12 @@ fun TasalicoolNavGraph(
 
         /* ================= WIFI LOCAL HOST ================= */
         composable("host_game") {
-            HostGameScreen(navController, gameState)
+            HostGameScreen(navController)
         }
 
         /* ================= WIFI LOCAL JOIN ================= */
         composable("join_game") {
-            JoinGameScreen(navController, gameState)
+            JoinGameScreen(navController)
         }
 
         /* ================= OTHER PLACEHOLDERS ================= */
