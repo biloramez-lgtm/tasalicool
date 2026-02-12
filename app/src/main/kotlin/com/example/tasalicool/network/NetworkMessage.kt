@@ -37,16 +37,38 @@ data class NetworkMessage(
 
     companion object {
 
-        private val gson = Gson()
+        private val gsonInstance = Gson()
 
         /* ================= JSON ================= */
 
         fun toJson(message: NetworkMessage): String {
-            return gson.toJson(message)
+            return gsonInstance.toJson(message)
         }
 
         fun fromJson(json: String): NetworkMessage {
-            return gson.fromJson(json, NetworkMessage::class.java)
+            return gsonInstance.fromJson(json, NetworkMessage::class.java)
+        }
+
+        fun getGson(): Gson = gsonInstance
+
+        /* ================= VALIDATION ================= */
+
+        fun isValidForRound(
+            message: NetworkMessage,
+            currentRound: Int,
+            currentTrick: Int
+        ): Boolean {
+
+            // إذا لا تحتوي أرقام جولات → نعتبرها عامة
+            if (message.roundNumber == null) return true
+
+            if (message.roundNumber != currentRound) return false
+
+            if (message.trickNumber != null &&
+                message.trickNumber != currentTrick
+            ) return false
+
+            return true
         }
 
         /* ================= FACTORY HELPERS ================= */
@@ -97,6 +119,23 @@ data class NetworkMessage(
             )
         }
 
+        fun createPing(playerId: String): NetworkMessage {
+            return NetworkMessage(
+                playerId = playerId,
+                action = GameAction.PING
+            )
+        }
+
+        fun createError(playerId: String, message: String): NetworkMessage {
+            return NetworkMessage(
+                playerId = "SERVER",
+                targetPlayerId = playerId,
+                action = GameAction.ERROR,
+                payload = message,
+                isHost = true
+            )
+        }
+
         private fun generateId(): String {
             return UUID.randomUUID().toString()
         }
@@ -119,14 +158,14 @@ enum class GameAction {
     START_ROUND,
 
     PLAY_CARD,
-    REQUEST_PLAY,      // يطلب الهوست من لاعب أن يلعب
+    REQUEST_PLAY,
 
     /* ===== Sync ===== */
-    SYNC_STATE,        // الهوست يرسل الحالة الكاملة
-    REQUEST_SYNC,      // العميل يطلب مزامنة
+    SYNC_STATE,
+    REQUEST_SYNC,
 
     /* ===== AI ===== */
-    TRIGGER_AI_MOVE,   // الهوست يشغل AI
+    TRIGGER_AI_MOVE,
 
     /* ===== Score ===== */
     ROUND_RESULT,
