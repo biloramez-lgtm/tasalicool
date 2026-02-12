@@ -5,13 +5,6 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 
-enum class AIDifficulty {
-    EASY,
-    NORMAL,
-    HARD,
-    ELITE
-}
-
 data class Player(
     val id: String,
     val name: String,
@@ -140,8 +133,7 @@ data class Player(
         val scoreValue = if (won) 1.0 else 0.0
 
         rating =
-            (rating + kFactor *
-                    (scoreValue - expected)).toInt()
+            (rating + kFactor * (scoreValue - expected)).toInt()
 
         rating = max(800, min(3000, rating))
     }
@@ -150,28 +142,18 @@ data class Player(
     /* ================= NETWORK COPIES ==================== */
     /* ===================================================== */
 
-    /**
-     * نسخة كاملة للشبكة (Host يرسلها)
-     */
     fun toNetworkFullCopy(): Player {
         return copy(
             hand = hand.toMutableList()
         )
     }
 
-    /**
-     * نسخة آمنة مستقبلية (حالياً نفس الكاملة)
-     * جاهزة إذا أردت إخفاء أوراق الآخرين لاحقاً
-     */
     fun toNetworkSafeCopy(): Player {
         return copy(
             hand = hand.toMutableList()
         )
     }
 
-    /**
-     * تحديث كامل من السيرفر (CLIENT يستخدمها)
-     */
     fun updateFromNetwork(networkPlayer: Player) {
 
         score = networkPlayer.score
@@ -181,7 +163,6 @@ data class Player(
         rating = networkPlayer.rating
         difficulty = networkPlayer.difficulty
 
-        // تحديث اليد بالكامل لضمان التزامن
         hand.clear()
         hand.addAll(networkPlayer.hand)
         sortHand()
