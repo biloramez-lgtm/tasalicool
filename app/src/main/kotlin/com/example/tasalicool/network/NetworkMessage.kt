@@ -15,12 +15,11 @@ data class NetworkMessage(
 
     val action: GameAction,
 
-    // JSON payload (GameState / Card / Text / etc)
+    // JSON payload (GameState / Card / Lobby / etc)
     val payload: String? = null,
 
     val targetPlayerId: String? = null,
 
-    // اختياري لتفادي التعارض
     val roundNumber: Int? = null,
     val trickNumber: Int? = null,
 
@@ -46,18 +45,58 @@ data class NetworkMessage(
 
         fun getGson(): Gson = gsonInstance
 
-        /* ================= SAFE VALIDATION ================= */
+        /* ================= VALIDATION ================= */
 
         fun isValidForTrick(
             message: NetworkMessage,
             currentTrick: Int
         ): Boolean {
-
             if (message.trickNumber == null) return true
             return message.trickNumber == currentTrick
         }
 
-        /* ================= FACTORY HELPERS ================= */
+        /* ===================================================== */
+        /* ================= FACTORY HELPERS =================== */
+        /* ===================================================== */
+
+        fun createJoin(playerId: String, name: String): NetworkMessage {
+            return NetworkMessage(
+                playerId = playerId,
+                playerName = name,
+                action = GameAction.JOIN
+            )
+        }
+
+        fun createLeave(playerId: String): NetworkMessage {
+            return NetworkMessage(
+                playerId = playerId,
+                action = GameAction.LEAVE
+            )
+        }
+
+        fun createReady(playerId: String): NetworkMessage {
+            return NetworkMessage(
+                playerId = playerId,
+                action = GameAction.READY
+            )
+        }
+
+        fun createStartGame(hostId: String): NetworkMessage {
+            return NetworkMessage(
+                playerId = hostId,
+                action = GameAction.START_GAME,
+                isHost = true
+            )
+        }
+
+        fun createLobbyState(hostId: String, lobbyJson: String): NetworkMessage {
+            return NetworkMessage(
+                playerId = hostId,
+                action = GameAction.MESSAGE,
+                payload = lobbyJson,
+                isHost = true
+            )
+        }
 
         fun createStateSync(
             hostId: String,
@@ -97,21 +136,6 @@ data class NetworkMessage(
             )
         }
 
-        fun createJoin(playerId: String, name: String): NetworkMessage {
-            return NetworkMessage(
-                playerId = playerId,
-                playerName = name,
-                action = GameAction.JOIN
-            )
-        }
-
-        fun createLeave(playerId: String): NetworkMessage {
-            return NetworkMessage(
-                playerId = playerId,
-                action = GameAction.LEAVE
-            )
-        }
-
         fun createPing(playerId: String): NetworkMessage {
             return NetworkMessage(
                 playerId = playerId,
@@ -145,14 +169,12 @@ enum class GameAction {
     JOIN,
     LEAVE,
     READY,
+    START_GAME,
 
     /* ===== Game Flow ===== */
-    START_GAME,
     START_ROUND,
-
     PLAY_CARD,
-    PLACE_BID,        // 🔥 أضفناها
-
+    PLACE_BID,
     REQUEST_PLAY,
 
     /* ===== Sync ===== */
@@ -167,7 +189,7 @@ enum class GameAction {
     GAME_OVER,
 
     /* ===== Utility ===== */
-    MESSAGE,
+    MESSAGE,      // 🔥 يستخدم لإرسال حالة Lobby
     PING,
     PONG,
     ERROR
