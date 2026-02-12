@@ -18,19 +18,14 @@ data class NetworkMessage(
     // JSON payload (GameState / Card / Text / etc)
     val payload: String? = null,
 
-    // إذا كانت الرسالة موجهة للاعب معين
     val targetPlayerId: String? = null,
 
-    // رقم الجولة لمنع التعارض
+    // اختياري لتفادي التعارض
     val roundNumber: Int? = null,
-
-    // رقم التريك لمنع السباق
     val trickNumber: Int? = null,
 
-    // هل المرسل هو الهوست؟
     val isHost: Boolean = false,
 
-    // توقيت الإرسال
     val timestamp: Long = System.currentTimeMillis()
 
 ) : Serializable {
@@ -51,24 +46,15 @@ data class NetworkMessage(
 
         fun getGson(): Gson = gsonInstance
 
-        /* ================= VALIDATION ================= */
+        /* ================= SAFE VALIDATION ================= */
 
-        fun isValidForRound(
+        fun isValidForTrick(
             message: NetworkMessage,
-            currentRound: Int,
             currentTrick: Int
         ): Boolean {
 
-            // إذا لا تحتوي أرقام جولات → نعتبرها عامة
-            if (message.roundNumber == null) return true
-
-            if (message.roundNumber != currentRound) return false
-
-            if (message.trickNumber != null &&
-                message.trickNumber != currentTrick
-            ) return false
-
-            return true
+            if (message.trickNumber == null) return true
+            return message.trickNumber == currentTrick
         }
 
         /* ================= FACTORY HELPERS ================= */
@@ -76,14 +62,12 @@ data class NetworkMessage(
         fun createStateSync(
             hostId: String,
             stateJson: String,
-            round: Int,
             trick: Int
         ): NetworkMessage {
             return NetworkMessage(
                 playerId = hostId,
                 action = GameAction.SYNC_STATE,
                 payload = stateJson,
-                roundNumber = round,
                 trickNumber = trick,
                 isHost = true
             )
@@ -91,16 +75,25 @@ data class NetworkMessage(
 
         fun createPlayCard(
             playerId: String,
-            cardJson: String,
-            round: Int,
+            cardString: String,
             trick: Int
         ): NetworkMessage {
             return NetworkMessage(
                 playerId = playerId,
                 action = GameAction.PLAY_CARD,
-                payload = cardJson,
-                roundNumber = round,
+                payload = cardString,
                 trickNumber = trick
+            )
+        }
+
+        fun createPlaceBid(
+            playerId: String,
+            bidValue: Int
+        ): NetworkMessage {
+            return NetworkMessage(
+                playerId = playerId,
+                action = GameAction.PLACE_BID,
+                payload = bidValue.toString()
             )
         }
 
@@ -158,6 +151,8 @@ enum class GameAction {
     START_ROUND,
 
     PLAY_CARD,
+    PLACE_BID,        // 🔥 أضفناها
+
     REQUEST_PLAY,
 
     /* ===== Sync ===== */
