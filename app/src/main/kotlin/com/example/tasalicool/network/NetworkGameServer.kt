@@ -131,20 +131,25 @@ class NetworkGameServer(
         if (host.networkId != client.playerId) return
         if (!lobby.areAllHumansReady()) return
 
-        // 🔥 نكمل اللاعبين بـ AI
+        // 1️⃣ نكمل اللاعبين بـ AI
         fillWithAIPlayers()
 
-        // 🔥 تحديث اللوبي بعد إضافة AI
+        // 2️⃣ نحدث اللوبي ليظهر 4/4
         broadcastLobby()
 
-        if (!lobby.startGame()) return
+        // 3️⃣ نؤخر بدء اللعبة قليلاً حتى يظهر التحديث
+        scope.launch {
 
-        buildEnginePlayersFromLobby()
+            delay(300)
 
-        gameEngine.startGame()
+            if (!lobby.startGame()) return@launch
 
-        broadcastStartGame()
-        broadcastFullState()
+            buildEnginePlayersFromLobby()
+            gameEngine.startGame()
+
+            broadcastStartGame()
+            broadcastFullState()
+        }
     }
 
     fun requestStartFromHost() {
