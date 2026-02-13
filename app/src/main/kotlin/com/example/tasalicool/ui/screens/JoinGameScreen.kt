@@ -28,6 +28,16 @@ fun JoinGameScreen(
 
     val client = remember { NetworkGameClient(gameEngine) }
 
+    /* ================= LISTEN FOR START FROM HOST ================= */
+
+    LaunchedEffect(client) {
+        client.onGameStarted = {
+            navController.navigate("game400") {
+                popUpTo("joinGame") { inclusive = true }
+            }
+        }
+    }
+
     DisposableEffect(Unit) {
         onDispose { client.disconnect() }
     }
@@ -98,7 +108,7 @@ fun JoinGameScreen(
                                 port = 5000,
                                 onConnected = {
                                     connected = true
-                                    statusText = "🟢 Connected"
+                                    statusText = "🟢 Connected to Host"
                                 },
                                 onDisconnected = {
                                     connected = false
@@ -161,9 +171,9 @@ fun JoinGameScreen(
 
                         Button(
                             onClick = {
-                                client.sendReady()   // لازم تضيفها في NetworkGameClient
+                                client.sendReady()
                                 ready = true
-                                statusText = "🟢 Ready - Waiting for Host"
+                                statusText = "🟢 Ready - Waiting for Host..."
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -183,7 +193,7 @@ fun JoinGameScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "✅ You are READY\nWaiting for Host to Start Game...",
+                                text = "✅ You are READY\nWaiting for Host...",
                                 color = Color.White
                             )
                         }
