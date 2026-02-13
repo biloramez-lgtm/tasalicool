@@ -15,7 +15,6 @@ class Game400Engine(
 ) : Serializable {
 
     var onGameUpdated: (() -> Unit)? = null
-
     var isNetworkClient = false
 
     private val deck = Deck()
@@ -63,7 +62,6 @@ class Game400Engine(
         trickNumber = 0
         currentTrick.clear()
         lastTrickWinner = null
-        winner = null
 
         currentPlayerIndex = (dealerIndex + 1) % players.size
         phase = GamePhase.BIDDING
@@ -83,17 +81,32 @@ class Game400Engine(
         val minBid = when {
             player.score < 30 -> 2
             player.score < 40 -> 3
-            else -> 4
+            player.score < 50 -> 4
+            else -> 5
         }
 
         if (bid < minBid || bid > 13) return false
 
         player.setBid(bid)
         nextPlayer()
-
         processAIBidding()
 
         if (players.all { it.hasPlacedBid() }) {
+
+            val totalBids = players.sumOf { it.bid }
+
+            val minTotal = when {
+                players.any { it.score >= 50 } -> 14
+                players.any { it.score >= 40 } -> 13
+                players.any { it.score >= 30 } -> 12
+                else -> 11
+            }
+
+            if (totalBids < minTotal) {
+                startNewRound()
+                return true
+            }
+
             phase = GamePhase.PLAYING
             currentPlayerIndex = (dealerIndex + 1) % players.size
         }
@@ -116,11 +129,11 @@ class Game400Engine(
             val minBid = when {
                 ai.score < 30 -> 2
                 ai.score < 40 -> 3
-                else -> 4
+                ai.score < 50 -> 4
+                else -> 5
             }
 
             val bid = AdvancedAI.chooseBid(ai, this, minBid)
-
             ai.setBid(bid)
             nextPlayer()
         }
@@ -154,9 +167,7 @@ class Game400Engine(
     }
 
     private fun processAITurns() {
-
         if (isNetworkClient) return
-
         while (isAITurn()) {
             val ai = getCurrentPlayer()
             val card = AdvancedAI.chooseCard(ai, this)
@@ -174,13 +185,28 @@ class Game400Engine(
 
         currentPlayerIndex = players.indexOf(trickWinner)
 
-        // 🔥 إذا انتهت الجولة
         if (trickNumber >= 13) {
-            players.forEach { it.applyRoundScore() }
-            winner = players.maxByOrNull { it.score }
-            phase = GamePhase.GAME_OVER
+
+            players.forEach { player ->
+                val bidValue = getBidValue(player.bid, player.score)
+
+                if (player.tricks >= player.bid) {
+                    player.score += bidValue
+                } else {
+                    player.score -= bidValue
+                }
+            }
+
+            checkGameWinner()
+
+            if (winner == null) {
+                startNewRound()
+            } else {
+                phase = GamePhase.GAME_OVER
+            }
         }
 
+        currentTrick.clear()
         onGameUpdated?.invoke()
     }
 
@@ -193,21 +219,61 @@ class Game400Engine(
         val leadSuit = currentTrick.first().second.suit
         val hasSameSuit = player.hand.any { it.suit == leadSuit }
 
-        return if (hasSameSuit) {
-            card.suit == leadSuit
-        } else true
+        return if (hasSameSuit) card.suit == leadSuit else true
     }
 
     private fun determineTrickWinner(): Player {
 
         val leadSuit = currentTrick.first().second.suit
 
-        val winningPlay =
+        val heartsPlays =
+            currentTrick.filter { it.second.suit.name == "HEARTS" }
+
+        val winningPlay = if (heartsPlays.isNotEmpty()) {
+            heartsPlays.maxByOrNull { it.second.rank.ordinal }
+        } else {
             currentTrick
                 .filter { it.second.suit == leadSuit }
-                .maxByOrNull { it.second.rank.ordinal }!!
+                .maxByOrNull { it.second.rank.ordinal }
+        }!!
 
         return winningPlay.first
+    }
+
+    private fun getBidValue(bid: Int, currentScore: Int): Int {
+
+        val normalTable = mapOf(
+            2 to 2, 3 to 3, 4 to 4,
+            5 to 10, 6 to 12, 7 to 14,
+            8 to 16, 9 to 27,
+            10 to 40, 11 to 40, 12 to 40, 13 to 40
+        )
+
+        val after30Table = mapOf(
+            2 to 2, 3 to 3, 4 to 4,
+            5 to 5, 6 to 6, 7 to 14,
+            8 to 16, 9 to 27,
+            10 to 40, 11 to 40, 12 to 40, 13 to 40
+        )
+
+        return if (currentScore >= 30)
+            after30Table[bid] ?: bid
+        else
+            normalTable[bid] ?: bid
+    }
+
+    private fun checkGameWinner() {
+
+        players.forEach { player ->
+
+            val partner = players.first {
+                it.teamId == player.teamId && it != player
+            }
+
+            if (player.score >= 41 && partner.score > 0) {
+                winner = player
+            }
+        }
     }
 
     /* ================= HELPERS ================= */
