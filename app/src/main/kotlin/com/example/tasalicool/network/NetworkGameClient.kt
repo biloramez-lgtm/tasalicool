@@ -1,7 +1,6 @@
 package com.example.tasalicool.network
 
 import com.example.tasalicool.models.*
-import com.google.gson.Gson
 import kotlinx.coroutines.*
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -17,7 +16,6 @@ class NetworkGameClient(
     private var output: DataOutputStream? = null
 
     private var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val gson = Gson()
     private val isConnected = AtomicBoolean(false)
 
     var playerId: String = "P_${System.currentTimeMillis()}"
@@ -147,14 +145,9 @@ class NetworkGameClient(
 
     private fun applyGameState(stateJson: String) {
 
-        val serverEngine =
-            gson.fromJson(
-                stateJson,
-                Game400Engine::class.java
-            )
-
+        // ✅ FIXED: نرسل النص مباشرة للدالة
         synchronized(gameEngine) {
-            gameEngine.applyNetworkState(serverEngine)
+            gameEngine.applyNetworkState(stateJson)
         }
     }
 
