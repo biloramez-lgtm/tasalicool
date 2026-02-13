@@ -18,7 +18,7 @@ class NetworkGameClient(
     private var input: DataInputStream? = null
     private var output: DataOutputStream? = null
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val gson = Gson()
     private val isConnected = AtomicBoolean(false)
 
@@ -45,6 +45,7 @@ class NetworkGameClient(
 
         scope.launch {
             try {
+
                 socket = Socket(hostIp, port)
                 socket?.tcpNoDelay = true
 
@@ -52,7 +53,10 @@ class NetworkGameClient(
                 output = DataOutputStream(socket!!.outputStream)
 
                 isConnected.set(true)
-                onConnected()
+
+                withContext(Dispatchers.Main) {
+                    onConnected()
+                }
 
                 sendMessage(
                     NetworkMessage.createJoin(
@@ -64,8 +68,12 @@ class NetworkGameClient(
                 listen(onDisconnected)
 
             } catch (_: Exception) {
+
                 isConnected.set(false)
-                onDisconnected()
+
+                withContext(Dispatchers.Main) {
+                    onDisconnected()
+                }
             }
         }
     }
@@ -77,7 +85,9 @@ class NetworkGameClient(
     private fun listen(onDisconnected: () -> Unit) {
 
         scope.launch {
+
             try {
+
                 while (isActive && isConnected.get()) {
 
                     val json = input?.readUTF() ?: break
@@ -87,18 +97,24 @@ class NetworkGameClient(
 
                         GameAction.LOBBY_STATE -> {
                             message.payload?.let {
-                                onLobbyUpdated?.invoke(it)
+                                withContext(Dispatchers.Main) {
+                                    onLobbyUpdated?.invoke(it)
+                                }
                             }
                         }
 
                         GameAction.START_GAME -> {
-                            onGameStarted?.invoke()
+                            withContext(Dispatchers.Main) {
+                                onGameStarted?.invoke()
+                            }
                         }
 
                         GameAction.SYNC_STATE -> {
                             message.payload?.let {
                                 applyGameState(it)
-                                onStateSynced?.invoke()
+                                withContext(Dispatchers.Main) {
+                                    onStateSynced?.invoke()
+                                }
                             }
                         }
 
@@ -112,8 +128,12 @@ class NetworkGameClient(
 
             } catch (_: Exception) {
             } finally {
+
                 disconnectInternal()
-                onDisconnected()
+
+                withContext(Dispatchers.Main) {
+                    onDisconnected()
+                }
             }
         }
     }
@@ -154,6 +174,21 @@ class NetworkGameClient(
             NetworkMessage(
                 playerId = playerId,
                 action = GameAction.READY
+            )
+        )
+    }
+
+    /* ========================================================= */
+    /* ======================== START GAME ===================== */
+    /* ========================================================= */
+
+    fun startGame() {
+        if (!isConnected.get()) return
+
+        sendMessage(
+            NetworkMessage(
+                playerId = playerId,
+                action = GameAction.START_GAME
             )
         )
     }
@@ -215,9 +250,13 @@ class NetworkGameClient(
 
         scope.launch {
             try {
+
+                val out = output ?: return@launch
                 val json = NetworkMessage.toJson(message)
-                output?.writeUTF(json)
-                output?.flush()
+
+                out.writeUTF(json)
+                out.flush()
+
             } catch (_: Exception) {
                 disconnectInternal()
             }
@@ -248,5 +287,8 @@ class NetworkGameClient(
         socket = null
         input = null
         output = null
+
+        scope.cancel()
+        scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     }
 }
