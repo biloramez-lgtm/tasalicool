@@ -26,7 +26,7 @@ class NetworkGameServer(
 
     private var serverSocket: ServerSocket? = null
     private val clients = CopyOnWriteArrayList<ClientConnection>()
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val isRunning = AtomicBoolean(false)
     private val playerCounter = AtomicInteger(0)
 
@@ -52,7 +52,9 @@ class NetworkGameServer(
         this.onGameUpdated = onGameUpdated
 
         scope.launch {
+
             try {
+
                 serverSocket = ServerSocket(port)
                 isRunning.set(true)
 
@@ -65,7 +67,10 @@ class NetworkGameServer(
                     val client = ClientConnection(socket, networkId)
 
                     clients.add(client)
-                    onClientConnected?.invoke(networkId)
+
+                    withContext(Dispatchers.Main) {
+                        onClientConnected?.invoke(networkId)
+                    }
 
                     listenToClient(client)
                 }
@@ -83,7 +88,9 @@ class NetworkGameServer(
     private fun listenToClient(client: ClientConnection) {
 
         scope.launch {
+
             try {
+
                 while (isActive && isRunning.get()) {
 
                     val json = client.input.readUTF()
@@ -148,10 +155,15 @@ class NetworkGameServer(
 
         val host = lobby.getHost() ?: return
 
-        // فقط الهوست يقدر يبدأ
         if (host.networkId != client.playerId) return
 
-        // تأكد أن الكل Ready
+        // 🔥 لازم يكون العدد 4
+        if (lobby.getPlayers().size > 4) return
+
+        // 🔥 كمّل AI إذا أقل من 4
+        fillWithAIPlayers()
+
+        // 🔥 تأكد أن الكل Ready
         if (!lobby.canStartGame()) return
 
         if (!lobby.startGame()) return
@@ -163,11 +175,27 @@ class NetworkGameServer(
         broadcastFullState()
     }
 
+    /* ========================================================= */
+    /* ======================== AI FILL ======================== */
+    /* ========================================================= */
+
+    private fun fillWithAIPlayers() {
+
+        val currentSize = lobby.getPlayers().size
+        val missing = 4 - currentSize
+
+        repeat(missing) { index ->
+            lobby.addAIPlayer("AI_${index + 1}")
+        }
+    }
+
     private fun broadcastStartGame() {
+
         val message = NetworkMessage(
             action = GameAction.START_GAME,
             playerId = "SERVER"
         )
+
         broadcast(message)
     }
 
@@ -183,7 +211,9 @@ class NetworkGameServer(
             gameEngine.players.filter { it.type == PlayerType.HUMAN }
 
         lobby.getPlayers().forEachIndexed { index, lobbyPlayer ->
-            if (index < humanPlayers.size) {
+
+            if (!lobbyPlayer.isAI && index < humanPlayers.size) {
+
                 networkPlayerMap[lobbyPlayer.networkId] =
                     humanPlayers[index]
             }
@@ -213,6 +243,7 @@ class NetworkGameServer(
             gameEngine.phase == GamePhase.PLAYING &&
             gameEngine.isAITurn()
         ) {
+
             val ai = gameEngine.getCurrentPlayer()
             val card = AdvancedAI.chooseCard(ai, gameEngine)
             gameEngine.playCard(ai, card)
@@ -236,7 +267,10 @@ class NetworkGameServer(
             )
 
         broadcast(message)
-        onGameUpdated?.invoke()
+
+        withContextSafeMain {
+            onGameUpdated?.invoke()
+        }
     }
 
     private fun broadcastLobby() {
@@ -257,13 +291,21 @@ class NetworkGameServer(
     }
 
     private fun sendFullStateTo(client: ClientConnection) {
-        broadcastFullState()
+        sendToClient(
+            client,
+            NetworkMessage.createStateSync(
+                hostId = "SERVER",
+                stateJson = NetworkMessage.getGson().toJson(gameEngine),
+                trick = gameEngine.trickNumber
+            )
+        )
     }
 
     private fun sendToClient(
         client: ClientConnection,
         message: NetworkMessage
     ) {
+
         try {
             val json = NetworkMessage.toJson(message)
             client.output.writeUTF(json)
@@ -285,7 +327,9 @@ class NetworkGameServer(
 
         try { client.socket.close() } catch (_: Exception) {}
 
-        onClientDisconnected?.invoke(client.playerId)
+        withContextSafeMain {
+            onClientDisconnected?.invoke(client.playerId)
+        }
 
         broadcastLobby()
     }
@@ -306,6 +350,13 @@ class NetworkGameServer(
 
         clients.clear()
         scope.cancel()
+        scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    }
+
+    private fun withContextSafeMain(block: () -> Unit) {
+        CoroutineScope(Dispatchers.Main).launch {
+            block()
+        }
     }
 }
 
