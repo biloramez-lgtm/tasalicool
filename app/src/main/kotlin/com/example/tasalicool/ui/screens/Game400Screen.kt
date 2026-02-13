@@ -50,22 +50,26 @@ fun Game400Screen(
     val topPlayer = engine.players[2]
     val rightPlayer = engine.players[3]
 
-    val team1Score = engine.players[0].score + engine.players[2].score
-    val team2Score = engine.players[1].score + engine.players[3].score
+    val team1Score = localPlayer.score + topPlayer.score
+    val team2Score = leftPlayer.score + rightPlayer.score
 
     val totalScore = team1Score + team2Score
     var previousTotal by remember { mutableStateOf(totalScore) }
 
     val scaleAnim = remember { Animatable(1f) }
 
+    /* ===== SCORE SCALE ANIMATION ===== */
+
     LaunchedEffect(totalScore) {
         if (totalScore != previousTotal) {
             previousTotal = totalScore
-            scaleAnim.animateTo(1.15f)
+            scaleAnim.animateTo(1.15f, animationSpec = spring())
             delay(250)
-            scaleAnim.animateTo(1f)
+            scaleAnim.animateTo(1f, animationSpec = spring())
         }
     }
+
+    /* ===== CLEAR TRICK ===== */
 
     LaunchedEffect(engine.currentTrick.size) {
         if (engine.currentTrick.size == 4 && networkClient == null) {
@@ -95,7 +99,11 @@ fun Game400Screen(
             ) {
 
                 IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White)
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = null,
+                        tint = Color.White
+                    )
                 }
 
                 Text(
@@ -110,12 +118,16 @@ fun Game400Screen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            /* ===== TOP PLAYER ===== */
+
             PlayerSideInfo(
                 player = topPlayer,
                 isCurrentTurn = engine.getCurrentPlayer() == topPlayer
             )
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            /* ===== CENTER TABLE ===== */
 
             Row(
                 modifier = Modifier
@@ -136,8 +148,8 @@ fun Game400Screen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        engine.currentTrick.forEach {
-                            CardView(card = it.second)
+                        engine.currentTrick.forEach { trick ->
+                            CardView(card = trick.second)
                         }
                     }
                 }
@@ -149,6 +161,8 @@ fun Game400Screen(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            /* ===== LOCAL PLAYER ===== */
 
             PlayerSideInfo(
                 player = localPlayer,
@@ -163,7 +177,8 @@ fun Game400Screen(
                         card = card,
                         isSelected = card == selectedCard,
                         onClick = {
-                            if (engine.phase == GamePhase.PLAYING &&
+                            if (
+                                engine.phase == GamePhase.PLAYING &&
                                 engine.getCurrentPlayer() == localPlayer
                             ) {
                                 selectedCard = card
@@ -207,7 +222,7 @@ fun Game400Screen(
         val animatedColor by animateColorAsState(
             targetValue = targetColor,
             animationSpec = spring(),
-            label = ""
+            label = "scoreColor"
         )
 
         Card(
@@ -223,8 +238,14 @@ fun Game400Screen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(12.dp)
             ) {
-                Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color.White)
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+
                 Spacer(modifier = Modifier.width(6.dp))
+
                 Text(
                     text = "$team1Score - $team2Score",
                     fontWeight = FontWeight.Bold,
