@@ -1,6 +1,5 @@
 package com.example.tasalicool
 
-import com.example.tasalicool.models.Game400Engine
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,7 +14,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.example.tasalicool.ui.screens.*
 import com.example.tasalicool.ui.theme.TasalicoolTheme
-import androidx.compose.runtime.*
 
 class MainActivity : ComponentActivity() {
 
@@ -45,9 +43,6 @@ fun TasalicoolNavGraph(
     navController: NavHostController
 ) {
 
-    // 🔥 محرك واحد مشترك لكل التطبيق
-    val gameEngine = remember { Game400Engine() }
-
     NavHost(
         navController = navController,
         startDestination = "home"
@@ -57,19 +52,16 @@ fun TasalicoolNavGraph(
             HomeScreen(navController)
         }
 
-        // ✅ عدلنا هون
+        // ✅ لم نعد نمرر gameEngine
         composable("game_400") {
             Game400Screen(
-                navController = navController,
-                gameEngine = gameEngine
+                navController = navController
             )
         }
 
-        // ✅ وعدلنا هون
         composable("resume_game") {
             Game400Screen(
-                navController = navController,
-                gameEngine = gameEngine
+                navController = navController
             )
         }
 
@@ -77,18 +69,13 @@ fun TasalicoolNavGraph(
             AboutScreen(navController)
         }
 
+        // إذا أردت لاحقاً تربطهم بـ ViewModel منفصل
         composable("host_game") {
-            HostGameScreen(
-                navController = navController,
-                gameEngine = gameEngine
-            )
+            HostGameScreen(navController)
         }
 
         composable("join_game") {
-            JoinGameScreen(
-                navController = navController,
-                gameEngine = gameEngine
-            )
+            JoinGameScreen(navController)
         }
 
         composable("solitaire") {
