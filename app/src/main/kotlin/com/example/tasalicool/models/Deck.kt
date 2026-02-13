@@ -50,12 +50,10 @@ data class Deck(
 
     /* ================= DRAW ================= */
 
-    fun drawCard(): Card? {
-        return if (cards.isNotEmpty()) {
-            cards.removeAt(0)
-        } else {
-            null
-        }
+    // 🔥 نسخة صارمة - لا تسمح بإرجاع null
+    fun drawCard(): Card {
+        require(cards.isNotEmpty()) { "Deck is empty!" }
+        return cards.removeAt(0)
     }
 
     fun drawCards(count: Int): List<Card> {
@@ -64,7 +62,7 @@ data class Deck(
         val drawnCards = mutableListOf<Card>()
 
         repeat(safeCount) {
-            drawCard()?.let { drawnCards.add(it) }
+            drawnCards.add(drawCard())
         }
 
         return drawnCards
