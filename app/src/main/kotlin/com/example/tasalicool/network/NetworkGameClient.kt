@@ -12,18 +12,27 @@ class NetworkGameClient(
     private val gameEngine: Game400Engine
 ) {
 
+    /* ================= NETWORK ================= */
+
     private var socket: Socket? = null
     private var input: DataInputStream? = null
     private var output: DataOutputStream? = null
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val gson = Gson()
-
     private val isConnected = AtomicBoolean(false)
 
     var playerId: String = "P_${System.currentTimeMillis()}"
 
-    /* ================= CONNECT ================= */
+    /* ================= CALLBACKS ================= */
+
+    var onGameStarted: (() -> Unit)? = null
+    var onLobbyUpdated: ((String) -> Unit)? = null
+    var onStateSynced: (() -> Unit)? = null
+
+    /* ========================================================= */
+    /* ========================= CONNECT ======================== */
+    /* ========================================================= */
 
     fun connect(
         hostIp: String,
@@ -31,11 +40,14 @@ class NetworkGameClient(
         onConnected: () -> Unit = {},
         onDisconnected: () -> Unit = {}
     ) {
+
         if (isConnected.get()) return
 
         scope.launch {
             try {
                 socket = Socket(hostIp, port)
+                socket?.tcpNoDelay = true
+
                 input = DataInputStream(socket!!.inputStream)
                 output = DataOutputStream(socket!!.outputStream)
 
@@ -58,9 +70,12 @@ class NetworkGameClient(
         }
     }
 
-    /* ================= LISTEN ================= */
+    /* ========================================================= */
+    /* ========================== LISTEN ======================== */
+    /* ========================================================= */
 
     private fun listen(onDisconnected: () -> Unit) {
+
         scope.launch {
             try {
                 while (isActive && isConnected.get()) {
@@ -70,18 +85,25 @@ class NetworkGameClient(
 
                     when (message.action) {
 
+                        GameAction.LOBBY_STATE -> {
+                            message.payload?.let {
+                                onLobbyUpdated?.invoke(it)
+                            }
+                        }
+
+                        GameAction.START_GAME -> {
+                            onGameStarted?.invoke()
+                        }
+
                         GameAction.SYNC_STATE -> {
                             message.payload?.let {
                                 applyGameState(it)
+                                onStateSynced?.invoke()
                             }
                         }
 
                         GameAction.ERROR -> {
                             println("❌ Server error: ${message.payload}")
-                        }
-
-                        GameAction.PONG -> {
-                            // اتصال سليم
                         }
 
                         else -> {}
@@ -96,7 +118,9 @@ class NetworkGameClient(
         }
     }
 
-    /* ================= APPLY STATE ================= */
+    /* ========================================================= */
+    /* ====================== APPLY GAME STATE ================= */
+    /* ========================================================= */
 
     private fun applyGameState(stateJson: String) {
 
@@ -106,22 +130,41 @@ class NetworkGameClient(
                 Game400Engine::class.java
             )
 
-        // مزامنة مباشرة آمنة
-        gameEngine.players.clear()
-        gameEngine.players.addAll(serverEngine.players)
+        synchronized(gameEngine) {
 
-        gameEngine.currentTrick.clear()
-        gameEngine.currentTrick.addAll(serverEngine.currentTrick)
+            gameEngine.players.clear()
+            gameEngine.players.addAll(serverEngine.players)
 
-        gameEngine.startNewRound() // لضمان تحديث الحالة داخلياً
+            gameEngine.currentTrick.clear()
+            gameEngine.currentTrick.addAll(serverEngine.currentTrick)
+
+            gameEngine.phase = serverEngine.phase
+            gameEngine.trickNumber = serverEngine.trickNumber
+        }
     }
 
-    /* ================= PLAY CARD ================= */
+    /* ========================================================= */
+    /* =========================== READY ======================== */
+    /* ========================================================= */
+
+    fun sendReady() {
+        if (!isConnected.get()) return
+
+        sendMessage(
+            NetworkMessage(
+                playerId = playerId,
+                action = GameAction.READY
+            )
+        )
+    }
+
+    /* ========================================================= */
+    /* ========================== PLAY CARD ==================== */
+    /* ========================================================= */
 
     fun playCard(card: Card) {
 
         if (!isConnected.get()) return
-
         if (gameEngine.getCurrentPlayer().id != playerId) return
 
         val message = NetworkMessage.createPlayCard(
@@ -133,7 +176,9 @@ class NetworkGameClient(
         sendMessage(message)
     }
 
-    /* ================= PLACE BID ================= */
+    /* ========================================================= */
+    /* =========================== BID ========================= */
+    /* ========================================================= */
 
     fun placeBid(bid: Int) {
 
@@ -147,7 +192,9 @@ class NetworkGameClient(
         sendMessage(message)
     }
 
-    /* ================= REQUEST SYNC ================= */
+    /* ========================================================= */
+    /* ======================= REQUEST SYNC ==================== */
+    /* ========================================================= */
 
     fun requestSync() {
         sendMessage(
@@ -158,7 +205,9 @@ class NetworkGameClient(
         )
     }
 
-    /* ================= SEND ================= */
+    /* ========================================================= */
+    /* =========================== SEND ======================== */
+    /* ========================================================= */
 
     private fun sendMessage(message: NetworkMessage) {
 
@@ -175,9 +224,12 @@ class NetworkGameClient(
         }
     }
 
-    /* ================= DISCONNECT ================= */
+    /* ========================================================= */
+    /* ======================== DISCONNECT ===================== */
+    /* ========================================================= */
 
     fun disconnect() {
+
         if (!isConnected.get()) return
 
         sendMessage(
