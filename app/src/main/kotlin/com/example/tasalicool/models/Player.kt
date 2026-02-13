@@ -45,7 +45,6 @@ data class Player(
         hand.clear()
     }
 
-    // ✅ حل مشكلة trumpSuit
     fun sortHand() {
         hand.sortWith(
             compareByDescending<Card> { it.isTrump(Suit.HEARTS) }
@@ -63,7 +62,8 @@ data class Player(
 
     fun isOutOfCards(): Boolean = hand.isEmpty()
 
-    fun isWinning(): Boolean = tricksWon >= bid
+    fun isWinning(): Boolean =
+        bid > 0 && tricksWon >= bid
 
     fun incrementTrick() {
         tricksWon++
@@ -72,6 +72,8 @@ data class Player(
     /* ================= ROUND SCORE ======================= */
 
     fun applyRoundScore(): Int {
+
+        if (bid <= 0) return 0
 
         val basePoints = when (bid) {
             2 -> 2
@@ -83,10 +85,10 @@ data class Player(
             8 -> 16
             9 -> 27
             10 -> 40
-            11 -> 11
-            12 -> 12
+            11 -> 45
+            12 -> 50
             13 -> 41
-            else -> 0
+            else -> bid
         }
 
         val points = if (tricksWon >= bid) {
