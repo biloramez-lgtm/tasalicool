@@ -26,13 +26,12 @@ data class Player(
 
 ) : Serializable {
 
-    /* ================= BID (Protected) ================= */
+    /* ================= BID ================= */
 
     var bid: Int = 0
         private set
 
     fun setBid(value: Int) {
-        // يحمي من القيم السلبية أو القيم الكبيرة
         bid = value.coerceIn(0, 13)
     }
 
@@ -80,7 +79,7 @@ data class Player(
         )
     }
 
-    /* ================= ROUND LOGIC ================= */
+    /* ================= ROUND ================= */
 
     fun incrementTrick() {
         tricksWon++
@@ -92,43 +91,11 @@ data class Player(
         clearHand()
     }
 
-    /* ================= ROUND SCORE ================= */
-
-    fun applyRoundScore(): Int {
-
-        if (!hasPlacedBid()) return 0
-
-        val basePoints = when (bid) {
-            2 -> 2
-            3 -> 3
-            4 -> 4
-            5 -> 10
-            6 -> 12
-            7 -> 14
-            8 -> 16
-            9 -> 27
-            10 -> 40
-            11 -> 45
-            12 -> 50
-            13 -> 41
-            else -> bid
-        }
-
-        val points = if (hasWonBid()) {
-            basePoints
-        } else {
-            -basePoints
-        }
-
-        score += points
-        return points
-    }
-
     /* ================= NETWORK SUPPORT ================= */
 
     fun updateFromNetwork(serverPlayer: Player) {
         score = serverPlayer.score
-        setBid(serverPlayer.bid) // حماية هنا
+        setBid(serverPlayer.bid)
         tricksWon = serverPlayer.tricksWon
         teamId = serverPlayer.teamId
         rating = serverPlayer.rating
