@@ -6,16 +6,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.tasalicool.R
-import com.example.tasalicool.models.*
+import com.example.tasalicool.models.Card
+import com.example.tasalicool.models.GamePhase
+import com.example.tasalicool.models.Player
 import com.example.tasalicool.viewmodel.GameViewModel
 
 @Composable
@@ -25,8 +25,6 @@ fun Game400Screen(
 ) {
 
     val engine = viewModel.engine
-
-    // هذا السطر يجبر إعادة الرسم عند أي تحديث
     viewModel.refresh.value
 
     if (engine.players.size < 4) {
@@ -40,21 +38,29 @@ fun Game400Screen(
     }
 
     val localPlayer = engine.players[0]
+    val leftPlayer = engine.players[1]
+    val topPlayer = engine.players[2]
+    val rightPlayer = engine.players[3]
     val currentPlayer = engine.getCurrentPlayer()
 
-    fun playerModifier(player: Player): Modifier {
-        return if (player == currentPlayer) {
+    var selectedCard by remember { mutableStateOf<Card?>(null) }
+
+    fun highlight(player: Player): Modifier {
+        return if (player == currentPlayer)
             Modifier.border(3.dp, Color.Green)
-        } else Modifier
+        else Modifier
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0E3B2E))
+            .padding(8.dp)
     ) {
 
         when (engine.phase) {
+
+            /* ================= BIDDING ================= */
 
             GamePhase.BIDDING -> {
 
@@ -68,7 +74,7 @@ fun Game400Screen(
                     ) {
 
                         Text(
-                            text = stringResource(R.string.how_many_tricks),
+                            text = "كم أكلة تريد؟",
                             color = Color.White
                         )
 
@@ -90,71 +96,162 @@ fun Game400Screen(
 
                 } else {
 
-                    Box(Modifier.align(Alignment.Center)) {
-                        Text(
-                            text = stringResource(
-                                R.string.waiting_player,
-                                currentPlayer.name
-                            ),
-                            color = Color.White
-                        )
-                    }
+                    Text(
+                        text = "بانتظار ${currentPlayer.name}...",
+                        color = Color.White,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 }
             }
 
+            /* ================= PLAYING ================= */
+
             GamePhase.PLAYING -> {
 
-                val leftPlayer = engine.players[1]
-                val topPlayer = engine.players[2]
-                val rightPlayer = engine.players[3]
-
+                // ===== TOP PLAYER =====
                 Text(
-                    text = topPlayer.name,
+                    text = "${topPlayer.name} (${topPlayer.hand.size})",
                     color = Color.White,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .then(playerModifier(topPlayer))
-                        .padding(6.dp)
+                        .then(highlight(topPlayer))
+                        .padding(8.dp)
                 )
 
+                // ===== LEFT PLAYER =====
                 Text(
-                    text = leftPlayer.name,
+                    text = "${leftPlayer.name} (${leftPlayer.hand.size})",
                     color = Color.White,
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .then(playerModifier(leftPlayer))
-                        .padding(6.dp)
+                        .then(highlight(leftPlayer))
+                        .padding(8.dp)
                 )
 
+                // ===== RIGHT PLAYER =====
                 Text(
-                    text = rightPlayer.name,
+                    text = "${rightPlayer.name} (${rightPlayer.hand.size})",
                     color = Color.White,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .then(playerModifier(rightPlayer))
-                        .padding(6.dp)
+                        .then(highlight(rightPlayer))
+                        .padding(8.dp)
                 )
 
-                Text(
-                    text = localPlayer.name,
-                    color = Color.White,
+                // ===== CURRENT TRICK =====
+                Row(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    engine.currentTrick.forEach { (_, card) ->
+                        Card(
+                            modifier = Modifier.size(50.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White
+                            )
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "${card.rank} ${card.suit}",
+                                    color = Color.Black
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ===== LOCAL PLAYER =====
+                Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .then(playerModifier(localPlayer))
-                        .padding(6.dp)
-                )
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+
+                    Text(
+                        text = localPlayer.name,
+                        color = Color.White,
+                        modifier = highlight(localPlayer)
+                            .padding(6.dp)
+                    )
+
+                    Spacer(Modifier.height(6.dp))
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(localPlayer.hand) { card ->
+
+                            Card(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .border(
+                                        width = if (card == selectedCard) 3.dp else 1.dp,
+                                        color = if (card == selectedCard)
+                                            Color.Yellow
+                                        else Color.Black
+                                    ),
+                                onClick = {
+                                    if (currentPlayer == localPlayer) {
+                                        selectedCard = card
+                                    }
+                                }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("${card.rank} ${card.suit}")
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            selectedCard?.let {
+                                engine.playCard(localPlayer, it)
+                                selectedCard = null
+                            }
+                        },
+                        enabled =
+                            selectedCard != null &&
+                                    currentPlayer == localPlayer
+                    ) {
+                        Text("لعب الورقة")
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+                }
             }
+
+            /* ================= GAME OVER ================= */
 
             GamePhase.GAME_OVER -> {
 
-                Box(Modifier.align(Alignment.Center)) {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+
                     Text(
-                        text = stringResource(
-                            R.string.winner_text,
-                            engine.winner?.name ?: ""
-                        ),
+                        text = "🏆 انتهت اللعبة",
                         color = Color.Yellow
                     )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Text(
+                        text = "الفائز: ${engine.winner?.name}",
+                        color = Color.White
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Button(onClick = {
+                        navController.popBackStack()
+                    }) {
+                        Text("رجوع")
+                    }
                 }
             }
 
