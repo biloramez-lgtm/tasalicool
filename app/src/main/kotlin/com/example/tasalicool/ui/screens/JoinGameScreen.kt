@@ -48,7 +48,8 @@ fun JoinGameScreen(
             value = ipAddress,
             onValueChange = { ipAddress = it },
             label = { Text("أدخل IP السيرفر") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !connected
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -57,28 +58,49 @@ fun JoinGameScreen(
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        Button(
-            onClick = {
+        if (!connected) {
 
-                client.connect(
-                    hostIp = ipAddress,
-                    port = 5000,
+            Button(
+                onClick = {
 
-                    onConnected = {
-                        statusText = "تم الاتصال بالسيرفر"
-                        connected = true
-                    },
+                    client.connect(
+                        hostIp = ipAddress,
+                        port = 5000,
 
-                    onDisconnected = {
-                        statusText = "انقطع الاتصال"
-                        connected = false
-                    }
+                        onConnected = {
+                            statusText = "تم الاتصال بالسيرفر"
+                            connected = true
+                        },
+
+                        onDisconnected = {
+                            statusText = "انقطع الاتصال"
+                            connected = false
+                        }
+                    )
+
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = ipAddress.isNotBlank()
+            ) {
+                Text("اتصال")
+            }
+
+        } else {
+
+            Button(
+                onClick = {
+                    client.disconnect()
+                    connected = false
+                    statusText = "تم قطع الاتصال"
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
                 )
+            ) {
+                Text("قطع الاتصال")
+            }
 
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("اتصال")
         }
 
         Spacer(modifier = Modifier.height(40.dp))
