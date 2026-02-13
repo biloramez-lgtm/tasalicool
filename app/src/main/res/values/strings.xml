@@ -1,3 +1,18 @@
 <resources>
+
+    <!-- App Name -->
     <string name="app_name">tasalicool</string>
+
+    <!-- Game 400 Strings -->
+
+    <string name="how_many_tricks">كم أكلة تريد؟</string>
+
+    <string name="waiting_player">
+        انتظر... اللاعب %1$s يزايد
+    </string>
+
+    <string name="winner_text">
+        الفائز: %1$s
+    </string>
+
 </resources>
