@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
@@ -53,38 +54,164 @@ fun Game400Screen(
         else Modifier
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF0E3B2E))
-            .padding(8.dp)
-    ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Tarneeb 400") }
+            )
+        }
+    ) { padding ->
 
-        when (uiState.phase) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(Color(0xFF0E3B2E))
+                .padding(8.dp)
+        ) {
 
-            /* ================= BIDDING ================= */
+            /* ================= الطاولة ================= */
 
-            GamePhase.BIDDING -> {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(300.dp)
+                    .background(
+                        Color(0xFF1B5E20),
+                        RoundedCornerShape(32.dp)
+                    )
+            )
 
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+            /* ================= السكور ================= */
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(12.dp)
+                    .background(
+                        Color.Black.copy(alpha = 0.7f),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .padding(8.dp)
+            ) {
+                Text(
+                    text = "Team A: ${uiState.teamAScore}",
+                    color = Color.White
+                )
+                Text(
+                    text = "Team B: ${uiState.teamBScore}",
+                    color = Color.White
+                )
+            }
+
+            when (uiState.phase) {
+
+                /* ================= BIDDING ================= */
+
+                GamePhase.BIDDING -> {
+
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+
+                        Text(
+                            text = localPlayer.name,
+                            color = Color.White,
+                            modifier = highlight(localPlayer).padding(6.dp)
+                        )
+
+                        Spacer(Modifier.height(6.dp))
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            items(localPlayer.hand) { card ->
+                                FlipCardView(
+                                    card = card,
+                                    isFaceUp = true
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+                    }
+
+                    if (currentPlayer == localPlayer) {
+
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+
+                            Text("كم أكلة تريد؟", color = Color.White)
+
+                            Spacer(Modifier.height(16.dp))
+
+                            LazyRow {
+                                items((2..13).toList()) { bid ->
+                                    Button(
+                                        onClick = {
+                                            engine.placeBid(localPlayer, bid)
+                                        },
+                                        modifier = Modifier.padding(4.dp)
+                                    ) {
+                                        Text(bid.toString())
+                                    }
+                                }
+                            }
+                        }
+
+                    } else {
+
+                        Text(
+                            text = "بانتظار ${currentPlayer.name}...",
+                            color = Color.White,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                }
+
+                /* ================= PLAYING ================= */
+
+                GamePhase.PLAYING -> {
 
                     Text(
-                        text = localPlayer.name,
+                        text = "${topPlayer.name} (${topPlayer.hand.size})",
                         color = Color.White,
-                        modifier = highlight(localPlayer).padding(6.dp)
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .then(highlight(topPlayer))
+                            .padding(8.dp)
                     )
 
-                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "${leftPlayer.name} (${leftPlayer.hand.size})",
+                        color = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .then(highlight(leftPlayer))
+                            .padding(8.dp)
+                    )
 
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    Text(
+                        text = "${rightPlayer.name} (${rightPlayer.hand.size})",
+                        color = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .then(highlight(rightPlayer))
+                            .padding(8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(localPlayer.hand) { card ->
+                        uiState.currentTrick.forEach { (_, card) ->
                             FlipCardView(
                                 card = card,
                                 isFaceUp = true
@@ -92,176 +219,90 @@ fun Game400Screen(
                         }
                     }
 
-                    Spacer(Modifier.height(16.dp))
-                }
-
-                if (currentPlayer == localPlayer) {
-
                     Column(
                         modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
 
-                        Text("كم أكلة تريد؟", color = Color.White)
+                        Text(
+                            text = localPlayer.name,
+                            color = Color.White,
+                            modifier = highlight(localPlayer).padding(6.dp)
+                        )
+
+                        Spacer(Modifier.height(6.dp))
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            items(localPlayer.hand) { card ->
+
+                                FlipCardView(
+                                    card = card,
+                                    isFaceUp = true,
+                                    isSelected = card == selectedCard,
+                                    enabled = currentPlayer == localPlayer,
+                                    onClick = {
+                                        if (currentPlayer == localPlayer) {
+                                            selectedCard = card
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+
+                        Button(
+                            onClick = {
+                                selectedCard?.let {
+                                    engine.playCard(localPlayer, it)
+                                    selectedCard = null
+                                }
+                            },
+                            enabled =
+                                selectedCard != null &&
+                                currentPlayer == localPlayer
+                        ) {
+                            Text("لعب الورقة")
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
+
+                /* ================= GAME OVER ================= */
+
+                GamePhase.GAME_OVER -> {
+
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+
+                        Text("🏆 انتهت اللعبة", color = Color.Yellow)
+
+                        Spacer(Modifier.height(8.dp))
+
+                        Text(
+                            text = "الفائز: ${uiState.winner?.name}",
+                            color = Color.White
+                        )
 
                         Spacer(Modifier.height(16.dp))
 
-                        LazyRow {
-                            items((2..13).toList()) { bid ->
-                                Button(
-                                    onClick = {
-                                        engine.placeBid(localPlayer, bid)
-                                    },
-                                    modifier = Modifier.padding(4.dp)
-                                ) {
-                                    Text(bid.toString())
-                                }
-                            }
+                        Button(onClick = {
+                            navController.popBackStack()
+                        }) {
+                            Text("رجوع")
                         }
                     }
-
-                } else {
-
-                    Text(
-                        text = "بانتظار ${currentPlayer.name}...",
-                        color = Color.White,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
                 }
+
+                else -> {}
             }
-
-            /* ================= PLAYING ================= */
-
-            GamePhase.PLAYING -> {
-
-                Text(
-                    text = "${topPlayer.name} (${topPlayer.hand.size})",
-                    color = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .then(highlight(topPlayer))
-                        .padding(8.dp)
-                )
-
-                Text(
-                    text = "${leftPlayer.name} (${leftPlayer.hand.size})",
-                    color = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .then(highlight(leftPlayer))
-                        .padding(8.dp)
-                )
-
-                Text(
-                    text = "${rightPlayer.name} (${rightPlayer.hand.size})",
-                    color = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .then(highlight(rightPlayer))
-                        .padding(8.dp)
-                )
-
-                /* ======= الطاولة ======= */
-
-                Row(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    uiState.currentTrick.forEach { (_, card) ->
-                        FlipCardView(
-                            card = card,
-                            isFaceUp = true
-                        )
-                    }
-                }
-
-                /* ======= يد اللاعب ======= */
-
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-
-                    Text(
-                        text = localPlayer.name,
-                        color = Color.White,
-                        modifier = highlight(localPlayer).padding(6.dp)
-                    )
-
-                    Spacer(Modifier.height(6.dp))
-
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        items(localPlayer.hand) { card ->
-
-                            FlipCardView(
-                                card = card,
-                                isFaceUp = true,
-                                isSelected = card == selectedCard,
-                                enabled = currentPlayer == localPlayer,
-                                onClick = {
-                                    if (currentPlayer == localPlayer) {
-                                        selectedCard = card
-                                    }
-                                }
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    Button(
-                        onClick = {
-                            selectedCard?.let {
-                                engine.playCard(localPlayer, it)
-                                selectedCard = null
-                            }
-                        },
-                        enabled =
-                            selectedCard != null &&
-                            currentPlayer == localPlayer
-                    ) {
-                        Text("لعب الورقة")
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-                }
-            }
-
-            /* ================= GAME OVER ================= */
-
-            GamePhase.GAME_OVER -> {
-
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-
-                    Text("🏆 انتهت اللعبة", color = Color.Yellow)
-
-                    Spacer(Modifier.height(8.dp))
-
-                    Text(
-                        text = "الفائز: ${uiState.winner?.name}",
-                        color = Color.White
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    Button(onClick = {
-                        navController.popBackStack()
-                    }) {
-                        Text("رجوع")
-                    }
-                }
-            }
-
-            else -> {}
         }
     }
 }
