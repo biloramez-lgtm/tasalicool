@@ -28,6 +28,12 @@ fun Game400Screen(navController: NavHostController) {
 
     val localPlayer = engine.players[0]
 
+    /* ================= START GAME AFTER UI READY ================= */
+
+    LaunchedEffect(Unit) {
+        engine.startGame()
+    }
+
     /* ================= ROUND END WATCHER ================= */
 
     LaunchedEffect(engine.phase) {
