@@ -130,8 +130,10 @@ class Game400Engine(
                 else -> 4
             }
 
-            val bid = minBid + (0..2).random()
-            placeBid(ai, bid.coerceAtMost(13))
+            // ✅ تم استبدال العشوائي بالذكاء الحقيقي
+            val bid = AdvancedAI.chooseBid(ai, this, minBid)
+
+            placeBid(ai, bid)
         }
     }
 
@@ -255,29 +257,6 @@ class Game400Engine(
 
         if (phase != GamePhase.GAME_OVER) {
             phase = GamePhase.ROUND_END
-        }
-
-        onGameUpdated?.invoke()
-    }
-
-    /* ================= WIFI SYNC ================= */
-
-    fun forceSyncFromServer(server: Game400Engine) {
-
-        this.phase = server.phase
-        this.currentPlayerIndex = server.currentPlayerIndex
-        this.dealerIndex = server.dealerIndex
-        this.trickNumber = server.trickNumber
-
-        this.currentTrick.clear()
-        this.currentTrick.addAll(server.currentTrick)
-
-        this.lastTrickWinner = server.lastTrickWinner
-        this.winner = server.winner
-
-        this.players.clear()
-        server.players.forEach {
-            this.players.add(it)
         }
 
         onGameUpdated?.invoke()
