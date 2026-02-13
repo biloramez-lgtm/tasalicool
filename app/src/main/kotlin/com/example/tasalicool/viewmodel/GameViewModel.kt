@@ -7,6 +7,8 @@ import com.example.tasalicool.models.Game400Engine
 class GameViewModel : ViewModel() {
 
     val engine = Game400Engine()
+
+    // هذا فقط لإجبار Compose على إعادة الرسم
     val refresh = mutableStateOf(0)
 
     init {
