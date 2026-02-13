@@ -10,7 +10,6 @@ class Game400Engine(
     humanCount: Int = 1,
     val players: MutableList<Player> = initializePlayers(gameMode, humanCount),
 
-    // ✅ Callbacks اختيارية
     val onClientConnected: ((Player) -> Unit)? = null,
     val onClientDisconnected: ((Player) -> Unit)? = null,
     val onGameUpdated: (() -> Unit)? = null
@@ -49,9 +48,7 @@ class Game400Engine(
         }
     }
 
-    /* ===================================================== */
-    /* ================= START FROM LOBBY =================== */
-    /* ===================================================== */
+    /* ================= START FROM LOBBY ================= */
 
     fun startGameFromLobby() {
         if (phase != GamePhase.WAITING_FOR_PLAYERS) return
@@ -61,9 +58,7 @@ class Game400Engine(
         onGameUpdated?.invoke()
     }
 
-    /* ===================================================== */
-    /* ================= ROUND ============================== */
-    /* ===================================================== */
+    /* ================= ROUND ================= */
 
     fun startNewRound() {
 
@@ -85,12 +80,12 @@ class Game400Engine(
         currentPlayerIndex = (dealerIndex + 1) % players.size
         phase = GamePhase.BIDDING
 
+        processAIBidding()
+
         onGameUpdated?.invoke()
     }
 
-    /* ===================================================== */
-    /* ================= BIDDING ============================ */
-    /* ===================================================== */
+    /* ================= BIDDING ================= */
 
     fun placeBid(player: Player, bid: Int): Boolean {
 
@@ -108,18 +103,39 @@ class Game400Engine(
         player.bid = bid
         nextPlayer()
 
+        processAIBidding()
+
         if (players.all { it.bid > 0 }) {
             phase = GamePhase.PLAYING
             currentPlayerIndex = (dealerIndex + 1) % players.size
+            processAITurns()
         }
 
         onGameUpdated?.invoke()
         return true
     }
 
-    /* ===================================================== */
-    /* ================= PLAY =============================== */
-    /* ===================================================== */
+    private fun processAIBidding() {
+
+        while (
+            phase == GamePhase.BIDDING &&
+            getCurrentPlayer().type == PlayerType.AI
+        ) {
+
+            val ai = getCurrentPlayer()
+
+            val minBid = when {
+                ai.score < 30 -> 2
+                ai.score < 40 -> 3
+                else -> 4
+            }
+
+            val bid = minBid + (0..2).random()
+            placeBid(ai, bid.coerceAtMost(13))
+        }
+    }
+
+    /* ================= PLAY ================= */
 
     fun playCard(player: Player, card: Card): Boolean {
 
@@ -140,8 +156,23 @@ class Game400Engine(
             nextPlayer()
         }
 
+        processAITurns()
+
         onGameUpdated?.invoke()
         return true
+    }
+
+    private fun processAITurns() {
+
+        while (
+            phase == GamePhase.PLAYING &&
+            getCurrentPlayer().type == PlayerType.AI
+        ) {
+
+            val ai = getCurrentPlayer()
+            val card = AdvancedAI.chooseCard(ai, this)
+            playCard(ai, card)
+        }
     }
 
     private fun finishTrick() {
@@ -168,9 +199,7 @@ class Game400Engine(
         onGameUpdated?.invoke()
     }
 
-    /* ===================================================== */
-    /* ================= TRICK LOGIC ======================== */
-    /* ===================================================== */
+    /* ================= TRICK LOGIC ================= */
 
     private fun determineTrickWinner(): Player {
 
@@ -199,18 +228,7 @@ class Game400Engine(
         return if (hasSuit) card.suit == leadSuit else true
     }
 
-    /* ===================================================== */
-    /* ================= AI ================================= */
-    /* ===================================================== */
-
-    fun isAITurn(): Boolean {
-        return phase == GamePhase.PLAYING &&
-                getCurrentPlayer().type == PlayerType.AI
-    }
-
-    /* ===================================================== */
-    /* ================= SCORING ============================ */
-    /* ===================================================== */
+    /* ================= SCORING ================= */
 
     private fun finishRound() {
 
@@ -242,9 +260,7 @@ class Game400Engine(
         onGameUpdated?.invoke()
     }
 
-    /* ===================================================== */
-    /* ================= WIFI SYNC ========================== */
-    /* ===================================================== */
+    /* ================= WIFI SYNC ================= */
 
     fun forceSyncFromServer(server: Game400Engine) {
 
@@ -267,9 +283,7 @@ class Game400Engine(
         onGameUpdated?.invoke()
     }
 
-    /* ===================================================== */
-    /* ================= HELPERS ============================ */
-    /* ===================================================== */
+    /* ================= HELPERS ================= */
 
     fun getCurrentPlayer(): Player =
         players[currentPlayerIndex]
