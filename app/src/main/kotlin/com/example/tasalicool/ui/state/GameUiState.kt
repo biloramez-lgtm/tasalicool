@@ -9,5 +9,9 @@ data class GameUiState(
     val players: List<Player> = emptyList(),
     val currentPlayerIndex: Int = 0,
     val currentTrick: List<Pair<Player, Card>> = emptyList(),
-    val winner: Player? = null
+    val winner: Player? = null,
+
+    // ✅ أضف هول
+    val teamAScore: Int = 0,
+    val teamBScore: Int = 0
 )
