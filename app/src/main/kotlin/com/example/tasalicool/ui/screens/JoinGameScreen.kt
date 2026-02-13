@@ -29,14 +29,12 @@ fun JoinGameScreen(
 
     val client = remember { NetworkGameClient(gameEngine) }
 
-    /* ================= IMPORTANT ================= */
-    // هذا الجهاز هو CLIENT وليس HOST
+    /* ===== THIS DEVICE IS CLIENT ===== */
     LaunchedEffect(Unit) {
         gameEngine.isNetworkClient = true
     }
 
-    /* ================= LISTEN FOR START ================= */
-
+    /* ===== LISTEN FOR GAME START ===== */
     LaunchedEffect(Unit) {
 
         client.onGameStarted = {
@@ -48,7 +46,6 @@ fun JoinGameScreen(
             }
         }
 
-        // عند وصول Sync من السيرفر
         client.onStateSynced = {
             gameEngine.onGameUpdated?.invoke()
         }
@@ -73,7 +70,7 @@ fun JoinGameScreen(
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        /* ================= CONNECTION ================= */
+        /* ===== CONNECTION CARD ===== */
 
         Card(
             shape = RoundedCornerShape(18.dp),
@@ -95,7 +92,7 @@ fun JoinGameScreen(
                     label = { Text("Host IP Address") },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !connected,
-                    keyboardOptions = KeyboardOptions(
+                    keyboardOptions = KeyboardOptions.Default.copy(
                         keyboardType = KeyboardType.Text
                     )
                 )
@@ -116,15 +113,12 @@ fun JoinGameScreen(
 
                     Button(
                         onClick = {
-
                             client.connect(
                                 hostIp = ipAddress,
                                 port = 5000,
                                 onConnected = {
                                     connected = true
                                     statusText = "🟢 Connected to Host"
-
-                                    // طلب مزامنة فورية
                                     client.requestSync()
                                 },
                                 onDisconnected = {
@@ -134,7 +128,6 @@ fun JoinGameScreen(
                                     statusText = "🔴 Disconnected"
                                 }
                             )
-
                         },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = ipAddress.isNotBlank()
@@ -165,7 +158,7 @@ fun JoinGameScreen(
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        /* ================= READY ================= */
+        /* ===== READY CARD ===== */
 
         if (connected) {
 
@@ -192,8 +185,7 @@ fun JoinGameScreen(
                             onClick = {
                                 client.sendReady()
                                 ready = true
-                                statusText =
-                                    "🟢 Ready - Waiting for Host..."
+                                statusText = "🟢 Ready - Waiting for Host..."
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
