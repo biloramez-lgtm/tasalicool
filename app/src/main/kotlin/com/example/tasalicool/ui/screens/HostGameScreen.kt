@@ -12,8 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.example.tasalicool.models.Game400Engine
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.tasalicool.network.NetworkGameServer
+import com.example.tasalicool.viewmodel.GameViewModel
 import com.google.gson.Gson
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -21,8 +22,10 @@ import java.net.NetworkInterface
 @Composable
 fun HostGameScreen(
     navController: NavHostController,
-    gameEngine: Game400Engine
+    viewModel: GameViewModel = viewModel()
 ) {
+
+    val gameEngine = viewModel.engine
 
     var serverStarted by remember { mutableStateOf(false) }
     var statusText by remember { mutableStateOf("السيرفر غير مشغل") }
@@ -35,8 +38,6 @@ fun HostGameScreen(
     DisposableEffect(Unit) {
         onDispose { server.stopServer() }
     }
-
-    /* ================= LISTEN LOBBY UPDATES ================= */
 
     LaunchedEffect(Unit) {
         server.setLobbyUpdateListener { lobbyJson ->
@@ -70,8 +71,6 @@ fun HostGameScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        /* ================= IP CARD ================= */
-
         Card(
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
@@ -90,8 +89,6 @@ fun HostGameScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        /* ================= START SERVER ================= */
-
         Button(
             onClick = {
                 if (!serverStarted) {
@@ -106,7 +103,7 @@ fun HostGameScreen(
                         onGameUpdated = {
                             if (!hasNavigatedToGame) {
                                 hasNavigatedToGame = true
-                                navController.navigate("game400")
+                                navController.navigate("game_400")
                             }
                         }
                     )
@@ -144,10 +141,7 @@ fun HostGameScreen(
         Text(statusText)
         Spacer(modifier = Modifier.height(25.dp))
 
-        /* ================= LOBBY ================= */
-
         val totalPlayers = lobbyPlayers.size
-
         val allReady =
             lobbyPlayers.isNotEmpty() &&
             lobbyPlayers.all { it.isReady }
@@ -176,8 +170,6 @@ fun HostGameScreen(
         }
 
         Spacer(modifier = Modifier.height(30.dp))
-
-        /* ================= START GAME ================= */
 
         val canStart = serverStarted && allReady
 
@@ -208,71 +200,5 @@ fun HostGameScreen(
         ) {
             Text("رجوع")
         }
-    }
-}
-
-/* ================= LOBBY UI MODEL ================= */
-
-data class LobbyUiPlayer(
-    val networkId: String,
-    val name: String,
-    val isReady: Boolean,
-    val isAI: Boolean
-)
-
-/* ================= PLAYER ROW ================= */
-
-@Composable
-fun PlayerRow(
-    name: String,
-    ready: Boolean,
-    isAI: Boolean = false
-) {
-
-    val statusColor =
-        if (ready) Color(0xFF4CAF50)
-        else Color(0xFFF44336)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant,
-                RoundedCornerShape(12.dp)
-            )
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-
-        Text(
-            text = if (isAI) "🤖 $name" else "👤 $name",
-            modifier = Modifier.weight(1f)
-        )
-
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .background(statusColor, RoundedCornerShape(50))
-        )
-    }
-}
-
-/* ================= WIFI IP ================= */
-
-fun getWifiIpAddress(): String? {
-    return try {
-        NetworkInterface.getNetworkInterfaces().toList().forEach { intf ->
-            if (intf.name.contains("wlan", true)) {
-                intf.inetAddresses.toList().forEach { addr ->
-                    if (!addr.isLoopbackAddress && addr is Inet4Address) {
-                        return addr.hostAddress
-                    }
-                }
-            }
-        }
-        null
-    } catch (_: Exception) {
-        null
     }
 }
