@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.tasalicool.models.Game400Engine
 import com.example.tasalicool.network.NetworkGameServer
+import com.google.gson.Gson
 import java.net.Inet4Address
 import java.net.NetworkInterface
 
@@ -24,18 +25,23 @@ fun HostGameScreen(
 ) {
 
     var serverStarted by remember { mutableStateOf(false) }
-    var connectedPlayers by remember { mutableStateOf(listOf<String>()) }
     var statusText by remember { mutableStateOf("السيرفر غير مشغل") }
 
-    val maxPlayers = 4
-    val humanCount = connectedPlayers.size
-    val aiCount = (maxPlayers - humanCount).coerceAtLeast(0)
-    val totalPlayers = humanCount + aiCount
+    var lobbyPlayers by remember { mutableStateOf(listOf<LobbyUiPlayer>()) }
 
+    val maxPlayers = 4
     val server = remember { NetworkGameServer(5000, gameEngine) }
+    val gson = remember { Gson() }
 
     DisposableEffect(Unit) {
         onDispose { server.stopServer() }
+    }
+
+    /* ================= LISTEN FOR START FROM SERVER ================= */
+
+    LaunchedEffect(serverStarted) {
+        // نراقب تغير حالة اللعبة
+        // عند بدء اللعب ينتقل الهوست أيضاً
     }
 
     Column(
@@ -80,22 +86,31 @@ fun HostGameScreen(
         Button(
             onClick = {
                 if (!serverStarted) {
+
                     server.startServer(
                         onClientConnected = { playerId ->
-                            if (connectedPlayers.size < maxPlayers) {
-                                connectedPlayers = connectedPlayers + playerId
-                                statusText = "🟢 $playerId connected"
-                            }
+                            statusText = "🟢 $playerId connected"
                         },
                         onClientDisconnected = { playerId ->
-                            connectedPlayers =
-                                connectedPlayers.filter { it != playerId }
                             statusText = "🔴 $playerId disconnected"
                         },
                         onGameUpdated = {
-                            statusText = "🔄 Game updated"
+                            // عند بدء اللعبة
+                            navController.navigate("game400")
                         }
                     )
+
+                    // 👇 أهم نقطة — نسمع تحديثات اللوبي
+                    server.setLobbyUpdateListener { lobbyJson ->
+                        val players =
+                            gson.fromJson(
+                                lobbyJson,
+                                Array<LobbyUiPlayer>::class.java
+                            ).toList()
+
+                        lobbyPlayers = players
+                    }
+
                     serverStarted = true
                     statusText = "🚀 Server running on port 5000"
                 }
@@ -111,7 +126,7 @@ fun HostGameScreen(
             Button(
                 onClick = {
                     server.stopServer()
-                    connectedPlayers = emptyList()
+                    lobbyPlayers = emptyList()
                     serverStarted = false
                     statusText = "تم إيقاف السيرفر"
                 },
@@ -130,7 +145,11 @@ fun HostGameScreen(
 
         Spacer(modifier = Modifier.height(25.dp))
 
-        /* ================= PLAYERS ================= */
+        /* ================= LOBBY ================= */
+
+        val totalPlayers = lobbyPlayers.size
+        val lobbyFull = totalPlayers == maxPlayers
+        val allReady = lobbyPlayers.all { it.isReady || it.isAI }
 
         Card(
             shape = RoundedCornerShape(16.dp),
@@ -145,15 +164,11 @@ fun HostGameScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                connectedPlayers.forEach { player ->
-                    PlayerRow(name = player, ready = true)
-                }
-
-                repeat(aiCount) {
+                lobbyPlayers.forEach { player ->
                     PlayerRow(
-                        name = "AI ${it + 1}",
-                        ready = true,
-                        isAI = true
+                        name = player.name,
+                        ready = player.isReady || player.isAI,
+                        isAI = player.isAI
                     )
                 }
             }
@@ -163,23 +178,21 @@ fun HostGameScreen(
 
         /* ================= START GAME ================= */
 
-        val lobbyFull = totalPlayers == 4
-        val canStart = serverStarted && lobbyFull
+        val canStart = serverStarted && lobbyFull && allReady
 
         Button(
             onClick = {
-                if (lobbyFull) {
-                    navController.navigate("game400")
-                }
+                server.requestStartFromHost()
             },
             enabled = canStart,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                if (lobbyFull)
-                    "🚀 Start Game"
-                else
-                    "بانتظار اكتمال اللاعبين (4)"
+                when {
+                    !lobbyFull -> "بانتظار اكتمال اللاعبين (4)"
+                    !allReady -> "بانتظار جاهزية الجميع"
+                    else -> "🚀 Start Game"
+                }
             )
         }
 
@@ -193,6 +206,15 @@ fun HostGameScreen(
         }
     }
 }
+
+/* ================= LOBBY UI MODEL ================= */
+
+data class LobbyUiPlayer(
+    val networkId: String,
+    val name: String,
+    val isReady: Boolean,
+    val isAI: Boolean
+)
 
 /* ================= PLAYER ROW ================= */
 
