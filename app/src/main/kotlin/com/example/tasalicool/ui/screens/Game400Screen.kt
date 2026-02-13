@@ -1,6 +1,7 @@
 package com.example.tasalicool.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -9,12 +10,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.example.tasalicool.models.*
 import com.example.tasalicool.R
+import com.example.tasalicool.models.*
 
 @Composable
 fun Game400Screen(
@@ -39,6 +42,15 @@ fun Game400Screen(
     }
 
     val localPlayer = engine.players[0]
+    val currentPlayer = engine.getCurrentPlayer()
+
+    fun playerModifier(player: Player): Modifier {
+        return if (player == currentPlayer) {
+            Modifier.border(3.dp, Color.Green)
+        } else {
+            Modifier
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -52,7 +64,7 @@ fun Game400Screen(
 
             GamePhase.BIDDING -> {
 
-                if (engine.getCurrentPlayer() == localPlayer) {
+                if (currentPlayer == localPlayer) {
 
                     Column(
                         modifier = Modifier
@@ -62,7 +74,7 @@ fun Game400Screen(
                     ) {
 
                         Text(
-                            text = stringResource(R.string.choose_bid),
+                            text = stringResource(R.string.how_many_tricks),
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium
                         )
@@ -77,20 +89,17 @@ fun Game400Screen(
                                     },
                                     modifier = Modifier.padding(4.dp)
                                 ) {
-                                    Text(text = bid.toString())
+                                    Text(bid.toString())
                                 }
                             }
                         }
                     }
                 } else {
-
-                    Box(
-                        modifier = Modifier.align(Alignment.Center)
-                    ) {
+                    Box(Modifier.align(Alignment.Center)) {
                         Text(
                             text = stringResource(
-                                R.string.waiting_bid,
-                                engine.getCurrentPlayer().name
+                                R.string.waiting_player,
+                                currentPlayer.name
                             ),
                             color = Color.White
                         )
@@ -106,61 +115,97 @@ fun Game400Screen(
                 val topPlayer = engine.players[2]
                 val rightPlayer = engine.players[3]
 
-                // Player names around table
+                // ===== Player Names with Highlight =====
+
                 Text(
                     text = topPlayer.name,
                     color = Color.White,
-                    modifier = Modifier.align(Alignment.TopCenter)
+                    fontWeight = if (topPlayer == currentPlayer) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .then(playerModifier(topPlayer))
+                        .padding(6.dp)
                 )
 
                 Text(
                     text = leftPlayer.name,
                     color = Color.White,
-                    modifier = Modifier.align(Alignment.CenterStart)
+                    fontWeight = if (leftPlayer == currentPlayer) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .then(playerModifier(leftPlayer))
+                        .padding(6.dp)
                 )
 
                 Text(
                     text = rightPlayer.name,
                     color = Color.White,
-                    modifier = Modifier.align(Alignment.CenterEnd)
+                    fontWeight = if (rightPlayer == currentPlayer) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .then(playerModifier(rightPlayer))
+                        .padding(6.dp)
                 )
 
                 Text(
                     text = localPlayer.name,
                     color = Color.White,
-                    modifier = Modifier.align(Alignment.BottomCenter)
+                    fontWeight = if (localPlayer == currentPlayer) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .then(playerModifier(localPlayer))
+                        .padding(6.dp)
                 )
 
-                // Current trick (center)
+                // ===== Center Trick =====
+
                 Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     engine.currentTrick.forEach { (player, card) ->
-                        Text(
-                            text = "${player.name}: ${card.rank} ${card.suit}",
-                            color = Color.White
-                        )
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White
+                            ),
+                            modifier = Modifier.padding(4.dp)
+                        ) {
+                            Text(
+                                text = "${card.rank} ${card.suit}",
+                                modifier = Modifier.padding(12.dp),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
 
-                // Local player hand
+                // ===== Player Hand =====
+
                 LazyRow(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 60.dp)
                 ) {
                     items(localPlayer.hand) { card ->
+
+                        val isMyTurn = currentPlayer == localPlayer
+
                         Card(
                             modifier = Modifier
-                                .padding(4.dp)
-                                .clickable {
+                                .padding(6.dp)
+                                .alpha(if (isMyTurn) 1f else 0.4f)
+                                .clickable(enabled = isMyTurn) {
                                     engine.playCard(localPlayer, card)
-                                }
+                                },
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White
+                            )
                         ) {
                             Text(
                                 text = "${card.rank} ${card.suit}",
-                                modifier = Modifier.padding(8.dp)
+                                modifier = Modifier.padding(14.dp),
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
                             )
                         }
                     }
@@ -170,9 +215,7 @@ fun Game400Screen(
             /* ================= GAME OVER ================= */
 
             GamePhase.GAME_OVER -> {
-                Box(
-                    modifier = Modifier.align(Alignment.Center)
-                ) {
+                Box(Modifier.align(Alignment.Center)) {
                     Text(
                         text = stringResource(
                             R.string.winner_text,
