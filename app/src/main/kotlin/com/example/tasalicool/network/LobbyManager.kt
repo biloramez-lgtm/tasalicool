@@ -22,22 +22,17 @@ class LobbyManager {
 
     private val MAX_PLAYERS = 4
 
-    /* ===================================================== */
-    /* ================= ADD PLAYER ========================= */
-    /* ===================================================== */
+    /* ================= ADD PLAYER ================= */
 
     fun addPlayer(networkId: String, name: String): LobbyPlayer? {
 
-        // إذا اللعبة بدأت → يدخل قائمة انتظار
         if (gameStarted) {
             val waiting = LobbyPlayer(networkId, name)
             waitingPlayers.add(waiting)
             return null
         }
 
-        if (players.size >= MAX_PLAYERS) {
-            return null
-        }
+        if (players.size >= MAX_PLAYERS) return null
 
         val isFirst = players.isEmpty()
 
@@ -51,31 +46,26 @@ class LobbyManager {
         return player
     }
 
-    /* ===================================================== */
-    /* ================= REMOVE ============================= */
-    /* ===================================================== */
+    /* ================= REMOVE ================= */
 
     fun removePlayer(networkId: String) {
 
         players.remove(networkId)
-
         waitingPlayers.removeIf { it.networkId == networkId }
 
-        // إعادة تعيين الهوست إذا خرج
-        if (players.values.none { it.isHost }) {
-            players.values.firstOrNull()?.isHost = true
+        // إعادة تعيين Host إذا خرج
+        if (players.isNotEmpty() && players.values.none { it.isHost }) {
+            players.values.first().isHost = true
         }
     }
 
-    /* ===================================================== */
-    /* ================= READY ============================== */
-    /* ===================================================== */
+    /* ================= READY ================= */
 
     fun setReady(networkId: String, ready: Boolean) {
         players[networkId]?.isReady = ready
     }
 
-    fun areAllReady(): Boolean {
+    fun areAllHumansReady(): Boolean {
         return players.isNotEmpty() &&
                 players.values.all { it.isReady }
     }
@@ -92,19 +82,34 @@ class LobbyManager {
         return waitingPlayers.toList()
     }
 
-    /* ===================================================== */
-    /* ================= START GAME ========================= */
-    /* ===================================================== */
+    fun getHumanCount(): Int {
+        return players.size
+    }
+
+    fun getRequiredAI(): Int {
+        return MAX_PLAYERS - players.size
+    }
+
+    /* ================= START GAME ================= */
+
+    fun canStartGame(): Boolean {
+
+        if (gameStarted) return false
+        if (players.isEmpty()) return false
+        if (!areAllHumansReady()) return false
+
+        return true
+    }
 
     fun startGame(): Boolean {
-        if (!areAllReady()) return false
+
+        if (!canStartGame()) return false
+
         gameStarted = true
         return true
     }
 
-    /* ===================================================== */
-    /* ================= CREATE ENGINE ====================== */
-    /* ===================================================== */
+    /* ================= CREATE ENGINE ================= */
 
     fun createGameEngine(): Game400Engine {
 
@@ -116,17 +121,14 @@ class LobbyManager {
         )
     }
 
-    /* ===================================================== */
-    /* ===== REPLACE AI WITH WAITING PLAYERS (NEW ROUND) ==== */
-    /* ===================================================== */
+    /* ================= REPLACE AI WITH WAITING ================= */
 
     fun replaceAIWithWaitingPlayers(engine: Game400Engine) {
 
         if (waitingPlayers.isEmpty()) return
 
-        val aiPlayers = engine.players
-            .filter { it.type == PlayerType.AI }
-            .toMutableList()
+        val aiPlayers =
+            engine.players.filter { it.type == PlayerType.AI }
 
         if (aiPlayers.isEmpty()) return
 
@@ -137,7 +139,6 @@ class LobbyManager {
             if (!iterator.hasNext()) break
 
             val waiting = iterator.next()
-
             val index = engine.players.indexOf(ai)
 
             engine.players[index] = Player(
@@ -151,16 +152,27 @@ class LobbyManager {
         }
     }
 
-    /* ===================================================== */
-    /* ================= SERIALIZE ========================== */
-    /* ===================================================== */
+    /* ================= RESET AFTER GAME ================= */
+
+    fun resetLobby() {
+
+        gameStarted = false
+
+        players.values.forEach {
+            it.isReady = false
+        }
+    }
+
+    /* ================= SERIALIZE ================= */
 
     fun toJson(): String {
+
         return NetworkMessage.getGson().toJson(
             mapOf(
                 "players" to players.values,
                 "waiting" to waitingPlayers,
-                "started" to gameStarted
+                "started" to gameStarted,
+                "requiredAI" to getRequiredAI()
             )
         )
     }
