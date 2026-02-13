@@ -12,8 +12,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
-import com.example.tasalicool.models.Game400Engine
-import com.example.tasalicool.models.GameMode
 import com.example.tasalicool.ui.screens.*
 import com.example.tasalicool.ui.theme.TasalicoolTheme
 
@@ -29,18 +27,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-
-                    // 🔥 محرك لعبة واحد مشترك
-                    val gameEngine = remember {
-                        Game400Engine(
-                            gameMode = GameMode.SINGLE_PLAYER
-                        )
-                    }
-
-                    TasalicoolNavGraph(
-                        navController = navController,
-                        engine = gameEngine
-                    )
+                    TasalicoolNavGraph(navController)
                 }
             }
         }
@@ -53,8 +40,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun TasalicoolNavGraph(
-    navController: NavHostController,
-    engine: Game400Engine
+    navController: NavHostController
 ) {
 
     NavHost(
@@ -66,25 +52,14 @@ fun TasalicoolNavGraph(
             HomeScreen(navController)
         }
 
-        // 🔥 شاشة لعبة 400 الجديدة مع الطاولة الخضراء
+        // ✅ شاشة لعبة 400 الرسمية (نسخة ViewModel)
         composable("game_400") {
-
-            // بدء لعبة جديدة عند الدخول
-            engine.startGame()
-
-            GameTableScreen(
-                navController = navController,
-                engine = engine
-            )
+            Game400Screen(navController = navController)
         }
 
-        // 🔥 استكمال نفس المحرك
+        // ✅ استكمال اللعبة
         composable("resume_game") {
-
-            GameTableScreen(
-                navController = navController,
-                engine = engine
-            )
+            Game400Screen(navController = navController)
         }
 
         composable("about") {
