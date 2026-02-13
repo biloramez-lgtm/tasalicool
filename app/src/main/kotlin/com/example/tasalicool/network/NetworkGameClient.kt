@@ -12,8 +12,6 @@ class NetworkGameClient(
     private val gameEngine: Game400Engine
 ) {
 
-    /* ================= NETWORK ================= */
-
     private var socket: Socket? = null
     private var input: DataInputStream? = null
     private var output: DataOutputStream? = null
@@ -24,11 +22,7 @@ class NetworkGameClient(
 
     var playerId: String = "P_${System.currentTimeMillis()}"
 
-    /* ================= STATE ================= */
-
     private var readySent = false
-
-    /* ================= CALLBACKS ================= */
 
     var onGameStarted: (() -> Unit)? = null
     var onLobbyUpdated: ((String) -> Unit)? = null
@@ -62,7 +56,6 @@ class NetworkGameClient(
                 isConnected.set(true)
                 readySent = false
 
-                // 🔥 مهم: client ما يشغل AI أبداً
                 gameEngine.isNetworkClient = true
 
                 withContext(Dispatchers.Main) {
@@ -77,7 +70,6 @@ class NetworkGameClient(
                 )
 
                 requestSync()
-
                 listen()
 
             } catch (e: Exception) {
@@ -162,16 +154,7 @@ class NetworkGameClient(
             )
 
         synchronized(gameEngine) {
-
-            gameEngine.players.clear()
-            gameEngine.players.addAll(serverEngine.players)
-
-            gameEngine.currentTrick.clear()
-            gameEngine.currentTrick.addAll(serverEngine.currentTrick)
-
-            gameEngine.phase = serverEngine.phase
-            gameEngine.trickNumber = serverEngine.trickNumber
-            gameEngine.winner = serverEngine.winner
+            gameEngine.applyNetworkState(serverEngine)
         }
     }
 
@@ -201,9 +184,6 @@ class NetworkGameClient(
     fun playCard(card: Card) {
 
         if (!isConnected.get()) return
-
-        // ❌ لا نتحقق من الدور هنا
-        // السيرفر هو المسؤول الوحيد
 
         val message = NetworkMessage.createPlayCard(
             playerId = playerId,
