@@ -28,12 +28,11 @@ import kotlinx.coroutines.delay
 fun Game400Screen(
     navController: NavHostController,
     gameEngine: Game400Engine,
-    networkClient: NetworkGameClient? = null // null = Host local
+    networkClient: NetworkGameClient? = null
 ) {
 
     val engine = gameEngine
 
-    // حماية ضد Crash قبل المزامنة
     if (engine.players.size < 4) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -54,8 +53,6 @@ fun Game400Screen(
     val team1Score = engine.players[0].score + engine.players[2].score
     val team2Score = engine.players[1].score + engine.players[3].score
 
-    val winningTeam = engine.winner?.teamId
-
     val totalScore = team1Score + team2Score
     var previousTotal by remember { mutableStateOf(totalScore) }
 
@@ -70,7 +67,6 @@ fun Game400Screen(
         }
     }
 
-    // مهم جداً: فقط الـ Host ينظف الأكلة
     LaunchedEffect(engine.currentTrick.size) {
         if (engine.currentTrick.size == 4 && networkClient == null) {
             delay(1200)
@@ -90,7 +86,7 @@ fun Game400Screen(
                 .padding(12.dp)
         ) {
 
-            /* ================= TOP BAR ================= */
+            /* ===== TOP BAR ===== */
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -99,11 +95,11 @@ fun Game400Screen(
             ) {
 
                 IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(Icons.Default.ArrowBack, null, tint = Color.White)
+                    Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White)
                 }
 
                 Text(
-                    "🎴 لعبة 400",
+                    text = "🎴 لعبة 400",
                     color = Color.White,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
@@ -114,7 +110,7 @@ fun Game400Screen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            /* ================= TOP PLAYER ================= */
+            /* ===== TOP PLAYER ===== */
 
             PlayerSideInfo(
                 player = topPlayer,
@@ -123,7 +119,7 @@ fun Game400Screen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            /* ================= CENTER TABLE ================= */
+            /* ===== CENTER TABLE ===== */
 
             Row(
                 modifier = Modifier
@@ -158,7 +154,7 @@ fun Game400Screen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            /* ================= LOCAL PLAYER ================= */
+            /* ===== LOCAL PLAYER ===== */
 
             PlayerSideInfo(
                 player = localPlayer,
@@ -206,7 +202,7 @@ fun Game400Screen(
             }
         }
 
-        /* ================= SCORE CARD ================= */
+        /* ===== SCORE CARD ===== */
 
         val targetColor = when {
             team1Score > team2Score -> Color(0xFF2E7D32)
@@ -231,10 +227,10 @@ fun Game400Screen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(12.dp)
             ) {
-                Icon(Icons.Default.EmojiEvents, null, tint = Color.White)
+                Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color.White)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    "$team1Score - $team2Score",
+                    text = "$team1Score - $team2Score",
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
