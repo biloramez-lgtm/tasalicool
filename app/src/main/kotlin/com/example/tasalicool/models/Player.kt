@@ -20,15 +20,39 @@ data class Player(
     val hand: MutableList<Card> = mutableListOf(),
 
     var score: Int = 0,
-    var bid: Int = 0,
     var tricksWon: Int = 0,
     var teamId: Int = 0,
     var rating: Int = 1200
 
 ) : Serializable {
 
+    /* ================= BID (Protected) ================= */
+
+    var bid: Int = 0
+        private set
+
+    fun setBid(value: Int) {
+        // يحمي من القيم السلبية أو القيم الكبيرة
+        bid = value.coerceIn(0, 13)
+    }
+
+    fun clearBid() {
+        bid = 0
+    }
+
+    fun hasPlacedBid(): Boolean = bid > 0
+
+    fun hasWonBid(): Boolean =
+        hasPlacedBid() && tricksWon >= bid
+
+    fun bidDifference(): Int = tricksWon - bid
+
+    /* ================= BASIC INFO ================= */
+
     fun isAI(): Boolean = type == PlayerType.AI
     fun isHuman(): Boolean = type == PlayerType.HUMAN
+
+    /* ================= HAND MANAGEMENT ================= */
 
     fun addCards(cards: List<Card>) {
         hand.addAll(cards)
@@ -45,35 +69,34 @@ data class Player(
         hand.clear()
     }
 
-    fun sortHand() {
-        hand.sortWith(
-            compareByDescending<Card> { it.isTrump(Suit.HEARTS) }
-                .thenByDescending { it.strength(Suit.HEARTS) }
-        )
-    }
-
     fun hasCard(card: Card): Boolean = hand.contains(card)
-
-    fun resetForNewRound() {
-        bid = 0
-        tricksWon = 0
-        clearHand()
-    }
 
     fun isOutOfCards(): Boolean = hand.isEmpty()
 
-    fun isWinning(): Boolean =
-        bid > 0 && tricksWon >= bid
+    fun sortHand(trump: Suit = Suit.HEARTS) {
+        hand.sortWith(
+            compareByDescending<Card> { it.isTrump(trump) }
+                .thenByDescending { it.strength(trump) }
+        )
+    }
+
+    /* ================= ROUND LOGIC ================= */
 
     fun incrementTrick() {
         tricksWon++
     }
 
-    /* ================= ROUND SCORE ======================= */
+    fun resetForNewRound() {
+        clearBid()
+        tricksWon = 0
+        clearHand()
+    }
+
+    /* ================= ROUND SCORE ================= */
 
     fun applyRoundScore(): Int {
 
-        if (bid <= 0) return 0
+        if (!hasPlacedBid()) return 0
 
         val basePoints = when (bid) {
             2 -> 2
@@ -91,7 +114,7 @@ data class Player(
             else -> bid
         }
 
-        val points = if (tricksWon >= bid) {
+        val points = if (hasWonBid()) {
             basePoints
         } else {
             -basePoints
@@ -101,11 +124,11 @@ data class Player(
         return points
     }
 
-    /* ================= NETWORK SUPPORT =================== */
+    /* ================= NETWORK SUPPORT ================= */
 
     fun updateFromNetwork(serverPlayer: Player) {
         score = serverPlayer.score
-        bid = serverPlayer.bid
+        setBid(serverPlayer.bid) // حماية هنا
         tricksWon = serverPlayer.tricksWon
         teamId = serverPlayer.teamId
         rating = serverPlayer.rating
@@ -121,7 +144,7 @@ data class Player(
         )
     }
 
-    /* ================= ELO RATING ======================== */
+    /* ================= ELO RATING ================= */
 
     fun updateRating(opponentRating: Int, won: Boolean) {
 
@@ -140,12 +163,32 @@ data class Player(
         rating = max(800, min(3000, rating))
     }
 
+    /* ================= UI HELPERS ================= */
+
     fun displayScore(): String = "$score pts"
+
+    fun displayBid(): String =
+        if (hasPlacedBid()) bid.toString() else ""
+
+    fun bidStatus(): BidStatus =
+        when {
+            !hasPlacedBid() -> BidStatus.NONE
+            hasWonBid() -> BidStatus.SUCCESS
+            else -> BidStatus.FAILED
+        }
 
     fun shortInfo(): String =
         "$name | Score: $score | Tricks: $tricksWon"
 
     override fun toString(): String {
-        return "Player(id=$id, name=$name, type=$type, score=$score)"
+        return "Player(id=$id, name=$name, score=$score, bid=$bid)"
     }
+}
+
+/* ================= BID STATUS ENUM ================= */
+
+enum class BidStatus {
+    NONE,
+    SUCCESS,
+    FAILED
 }
