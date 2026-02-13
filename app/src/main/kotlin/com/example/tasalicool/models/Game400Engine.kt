@@ -9,11 +9,9 @@ class Game400Engine(
     var gameMode: GameMode = GameMode.SINGLE_PLAYER,
     humanCount: Int = 1,
     val players: MutableList<Player> = initializePlayers(gameMode, humanCount),
-
     val onClientConnected: ((Player) -> Unit)? = null,
     val onClientDisconnected: ((Player) -> Unit)? = null,
     val onGameUpdated: (() -> Unit)? = null
-
 ) : Serializable {
 
     private val deck = Deck()
@@ -48,16 +46,6 @@ class Game400Engine(
         }
     }
 
-    /* ================= START FROM LOBBY ================= */
-
-    fun startGameFromLobby() {
-        if (phase != GamePhase.WAITING_FOR_PLAYERS) return
-        dealerIndex = -1
-        winner = null
-        startNewRound()
-        onGameUpdated?.invoke()
-    }
-
     /* ================= ROUND ================= */
 
     fun startNewRound() {
@@ -81,7 +69,6 @@ class Game400Engine(
         phase = GamePhase.BIDDING
 
         processAIBidding()
-
         onGameUpdated?.invoke()
     }
 
@@ -116,12 +103,9 @@ class Game400Engine(
     }
 
     private fun processAIBidding() {
-
-        while (
-            phase == GamePhase.BIDDING &&
+        while (phase == GamePhase.BIDDING &&
             getCurrentPlayer().type == PlayerType.AI
         ) {
-
             val ai = getCurrentPlayer()
 
             val minBid = when {
@@ -131,7 +115,8 @@ class Game400Engine(
             }
 
             val bid = AdvancedAI.chooseBid(ai, this, minBid)
-            placeBid(ai, bid)
+            ai.bid = bid
+            nextPlayer()
         }
     }
 
@@ -156,19 +141,16 @@ class Game400Engine(
             nextPlayer()
         }
 
-        processAITurns()
-
         onGameUpdated?.invoke()
+        processAITurns()
         return true
     }
 
     private fun processAITurns() {
 
-        while (
-            phase == GamePhase.PLAYING &&
+        while (phase == GamePhase.PLAYING &&
             getCurrentPlayer().type == PlayerType.AI
         ) {
-
             val ai = getCurrentPlayer()
             val card = AdvancedAI.chooseCard(ai, this)
             playCard(ai, card)
@@ -181,9 +163,11 @@ class Game400Engine(
         trickWinner.incrementTrick()
 
         lastTrickWinner = trickWinner
+        trickNumber++
+
         currentPlayerIndex = players.indexOf(trickWinner)
 
-        trickNumber++
+        // لا ننتقل فوراً، ننتظر UI يستدعي clearTrickAfterDelay
     }
 
     fun clearTrickAfterDelay() {
@@ -197,6 +181,7 @@ class Game400Engine(
         }
 
         onGameUpdated?.invoke()
+        processAITurns()
     }
 
     /* ================= TRICK LOGIC ================= */
@@ -232,15 +217,6 @@ class Game400Engine(
 
     private fun finishRound() {
 
-        players.forEach { player ->
-            if (player.bid == 13 && player.tricksWon == 13) {
-                winner = player
-                phase = GamePhase.GAME_OVER
-                onGameUpdated?.invoke()
-                return
-            }
-        }
-
         players.forEach { it.applyRoundScore() }
 
         players.forEach { player ->
@@ -253,36 +229,7 @@ class Game400Engine(
             }
         }
 
-        if (phase != GamePhase.GAME_OVER) {
-            phase = GamePhase.ROUND_END
-        }
-
-        onGameUpdated?.invoke()
-    }
-
-    /* ================= COMPATIBILITY (FIX BUILD ERRORS) ================= */
-
-    fun isAITurn(): Boolean {
-        return phase == GamePhase.PLAYING &&
-                getCurrentPlayer().type == PlayerType.AI
-    }
-
-    fun forceSyncFromServer(serverEngine: Game400Engine) {
-
-        this.phase = serverEngine.phase
-        this.currentPlayerIndex = serverEngine.currentPlayerIndex
-        this.dealerIndex = serverEngine.dealerIndex
-        this.trickNumber = serverEngine.trickNumber
-        this.winner = serverEngine.winner
-        this.lastTrickWinner = serverEngine.lastTrickWinner
-
-        this.currentTrick.clear()
-        this.currentTrick.addAll(serverEngine.currentTrick)
-
-        for (i in players.indices) {
-            players[i].updateFromNetwork(serverEngine.players[i])
-        }
-
+        phase = GamePhase.ROUND_END
         onGameUpdated?.invoke()
     }
 
@@ -290,6 +237,10 @@ class Game400Engine(
 
     fun getCurrentPlayer(): Player =
         players[currentPlayerIndex]
+
+    fun isAITurn(): Boolean =
+        phase == GamePhase.PLAYING &&
+                getCurrentPlayer().type == PlayerType.AI
 
     private fun nextPlayer() {
         currentPlayerIndex =
@@ -321,11 +272,11 @@ class Game400Engine(
 
             var index = 0
 
-            for (i in 1..humans) {
+            repeat(humans) {
                 players.add(
                     Player(
                         id = UUID.randomUUID().toString(),
-                        name = "Player $i",
+                        name = "Player ${it + 1}",
                         type = PlayerType.HUMAN,
                         teamId = if (index % 2 == 0) 1 else 2
                     )
@@ -333,11 +284,11 @@ class Game400Engine(
                 index++
             }
 
-            for (i in 1..aiCount) {
+            repeat(aiCount) {
                 players.add(
                     Player(
                         id = UUID.randomUUID().toString(),
-                        name = "AI $i",
+                        name = "AI ${it + 1}",
                         type = PlayerType.AI,
                         teamId = if (index % 2 == 0) 1 else 2
                     )
