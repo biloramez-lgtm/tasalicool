@@ -1,7 +1,7 @@
 package com.example.tasalicool.ui.screens
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.Animatable
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -37,8 +37,6 @@ fun Game400Screen(navController: NavHostController) {
 
     val winningTeam = engine.winner?.teamId
 
-    /* ================= SCORE ANIMATION ================= */
-
     val totalScore = team1Score + team2Score
     var previousTotal by remember { mutableStateOf(totalScore) }
 
@@ -52,8 +50,6 @@ fun Game400Screen(navController: NavHostController) {
             scaleAnim.animateTo(1f, spring(dampingRatio = 0.6f))
         }
     }
-
-    /* ================= GAME START ================= */
 
     LaunchedEffect(Unit) {
         engine.startGame()
@@ -187,8 +183,6 @@ fun Game400Screen(navController: NavHostController) {
             }
         }
 
-        /* ================= SCORE BADGE ================= */
-
         val targetColor = when {
             team1Score > team2Score -> Color(0xFF2E7D32)
             team2Score > team1Score -> Color(0xFF1565C0)
@@ -225,8 +219,6 @@ fun Game400Screen(navController: NavHostController) {
                 )
             }
         }
-
-        /* ================= WIN SCREEN ================= */
 
         if (engine.phase == GamePhase.GAME_OVER && winningTeam != null) {
 
@@ -267,9 +259,7 @@ fun Game400Screen(navController: NavHostController) {
                         Spacer(modifier = Modifier.height(24.dp))
 
                         Button(
-                            onClick = {
-                                engine.startNewRound()
-                            },
+                            onClick = { engine.startNewRound() },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("إعادة مباراة")
@@ -278,9 +268,7 @@ fun Game400Screen(navController: NavHostController) {
                         Spacer(modifier = Modifier.height(8.dp))
 
                         OutlinedButton(
-                            onClick = {
-                                navController.popBackStack()
-                            },
+                            onClick = { navController.popBackStack() },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("الخروج")
