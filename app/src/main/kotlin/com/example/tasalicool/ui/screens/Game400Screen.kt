@@ -24,9 +24,13 @@ import com.example.tasalicool.ui.components.*
 import kotlinx.coroutines.delay
 
 @Composable
-fun Game400Screen(navController: NavHostController) {
+fun Game400Screen(
+    navController: NavHostController,
+    gameEngine: Game400Engine,
+    networkClient: NetworkGameClient? = null // null = Host local
+) {
 
-    val engine = remember { Game400Engine() }
+    val engine = gameEngine
 
     var selectedCard by remember { mutableStateOf<Card?>(null) }
 
@@ -49,10 +53,6 @@ fun Game400Screen(navController: NavHostController) {
             delay(250)
             scaleAnim.animateTo(1f, spring(dampingRatio = 0.6f))
         }
-    }
-
-    LaunchedEffect(Unit) {
-        engine.startGame()
     }
 
     LaunchedEffect(engine.currentTrick.size) {
@@ -167,10 +167,13 @@ fun Game400Screen(navController: NavHostController) {
 
             Button(
                 onClick = {
-                    selectedCard?.let {
-                        if (engine.playCard(localPlayer, it)) {
-                            selectedCard = null
+                    selectedCard?.let { card ->
+                        if (networkClient != null) {
+                            networkClient.sendPlayCard(card)
+                        } else {
+                            engine.playCard(localPlayer, card)
                         }
+                        selectedCard = null
                     }
                 },
                 enabled =
@@ -200,81 +203,19 @@ fun Game400Screen(navController: NavHostController) {
                 .align(Alignment.TopEnd)
                 .padding(12.dp)
                 .scale(scaleAnim.value),
-            colors = CardDefaults.cardColors(containerColor = animatedColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = 14.dp)
+            colors = CardDefaults.cardColors(containerColor = animatedColor)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(12.dp)
             ) {
-
                 Icon(Icons.Default.EmojiEvents, null, tint = Color.White)
-
                 Spacer(modifier = Modifier.width(6.dp))
-
                 Text(
                     "$team1Score - $team2Score",
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
-            }
-        }
-
-        if (engine.phase == GamePhase.GAME_OVER && winningTeam != null) {
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.75f)),
-                contentAlignment = Alignment.Center
-            ) {
-
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF1B5E20)
-                    ),
-                    elevation = CardDefaults.cardElevation(20.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-
-                        Icon(
-                            Icons.Default.EmojiEvents,
-                            contentDescription = null,
-                            tint = Color.Yellow,
-                            modifier = Modifier.size(64.dp)
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Text(
-                            "🏆 الفريق $winningTeam فاز!",
-                            color = Color.White,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        Button(
-                            onClick = { engine.startNewRound() },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("إعادة مباراة")
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        OutlinedButton(
-                            onClick = { navController.popBackStack() },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("الخروج")
-                        }
-                    }
-                }
             }
         }
     }
