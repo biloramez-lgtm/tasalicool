@@ -13,10 +13,12 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class NetworkGameServer(
     private val port: Int = 5000,
-    private val onClientConnected: ((String) -> Unit)? = null,
-    private val onClientDisconnected: ((String) -> Unit)? = null,
-    private val onGameUpdated: (() -> Unit)? = null
+    private val gameEngine: Game400Engine
 ) {
+
+    private var onClientConnected: ((String) -> Unit)? = null
+    private var onClientDisconnected: ((String) -> Unit)? = null
+    private var onGameUpdated: (() -> Unit)? = null
 
     private var serverSocket: ServerSocket? = null
     private val clients = CopyOnWriteArrayList<ClientConnection>()
@@ -25,14 +27,21 @@ class NetworkGameServer(
     private val playerCounter = AtomicInteger(0)
 
     private val lobby = LobbyManager()
-    private var gameEngine: Game400Engine? = null
     private val networkPlayerMap = mutableMapOf<String, Player>()
 
     /* ================= START SERVER ================= */
 
-    fun startServer() {
+    fun startServer(
+        onClientConnected: ((String) -> Unit)? = null,
+        onClientDisconnected: ((String) -> Unit)? = null,
+        onGameUpdated: (() -> Unit)? = null
+    ) {
 
         if (isRunning.get()) return
+
+        this.onClientConnected = onClientConnected
+        this.onClientDisconnected = onClientDisconnected
+        this.onGameUpdated = onGameUpdated
 
         scope.launch {
             try {
@@ -47,7 +56,7 @@ class NetworkGameServer(
                     val client = ClientConnection(socket, networkId)
                     clients.add(client)
 
-                    onClientConnected?.invoke(networkId)
+                    this@NetworkGameServer.onClientConnected?.invoke(networkId)
 
                     listenToClient(client)
                 }
@@ -70,20 +79,14 @@ class NetworkGameServer(
                     when (message.action) {
 
                         GameAction.JOIN -> handleJoin(client, message)
-
                         GameAction.READY -> {
                             lobby.setReady(client.playerId, true)
                             broadcastLobby()
                         }
-
                         GameAction.START_GAME -> handleStartGame(client)
-
                         GameAction.PLAY_CARD -> handlePlayCard(client, message)
-
                         GameAction.REQUEST_SYNC -> sendFullStateTo(client)
-
                         GameAction.LEAVE -> removeClient(client)
-
                         else -> {}
                     }
                 }
@@ -94,31 +97,6 @@ class NetworkGameServer(
         }
     }
 
-    /* ================= JOIN ================= */
-
-    private fun handleJoin(
-        client: ClientConnection,
-        message: NetworkMessage
-    ) {
-
-        val name = message.playerName ?: "Player"
-
-        val lobbyPlayer = lobby.addPlayer(client.playerId, name)
-
-        if (lobbyPlayer == null) {
-            sendToClient(
-                client,
-                NetworkMessage.createError(
-                    client.playerId,
-                    "Game already started. Waiting next round."
-                )
-            )
-            return
-        }
-
-        broadcastLobby()
-    }
-
     /* ================= START GAME ================= */
 
     private fun handleStartGame(client: ClientConnection) {
@@ -127,23 +105,20 @@ class NetworkGameServer(
         if (host.networkId != client.playerId) return
         if (!lobby.startGame()) return
 
-        gameEngine = lobby.createGameEngine()
-        gameEngine?.startGameFromLobby()
+        gameEngine.startGameFromLobby()
 
         mapNetworkPlayersToEngine()
         broadcastFullState()
     }
 
-    /* ================= MAP PLAYERS ================= */
+    /* ================= MAP ================= */
 
     private fun mapNetworkPlayersToEngine() {
-
-        val engine = gameEngine ?: return
 
         networkPlayerMap.clear()
 
         val humanPlayers =
-            engine.players.filter { it.type == PlayerType.HUMAN }
+            gameEngine.players.filter { it.type == PlayerType.HUMAN }
 
         lobby.getPlayers().forEachIndexed { index, lobbyPlayer ->
             if (index < humanPlayers.size) {
@@ -160,61 +135,29 @@ class NetworkGameServer(
         message: NetworkMessage
     ) {
 
-        val engine = gameEngine ?: return
-        if (engine.phase != GamePhase.PLAYING) return
+        if (gameEngine.phase != GamePhase.PLAYING) return
 
         val player = networkPlayerMap[client.playerId] ?: return
-        if (engine.getCurrentPlayer() != player) return
+        if (gameEngine.getCurrentPlayer() != player) return
 
         val card = Card.fromString(message.payload ?: return) ?: return
-
-        if (!engine.playCard(player, card)) return
+        if (!gameEngine.playCard(player, card)) return
 
         processAITurns()
         broadcastFullState()
-
-        if (engine.currentTrick.isEmpty() &&
-            engine.lastTrickWinner != null
-        ) {
-            scope.launch {
-                delay(1500)
-                engine.clearTrickAfterDelay()
-                lobby.replaceAIWithWaitingPlayers(engine)
-                broadcastFullState()
-            }
-        }
     }
 
     /* ================= AI ================= */
 
     private fun processAITurns() {
 
-        val engine = gameEngine ?: return
-
         while (
-            engine.phase == GamePhase.PLAYING &&
-            engine.isAITurn()
+            gameEngine.phase == GamePhase.PLAYING &&
+            gameEngine.isAITurn()
         ) {
-            val ai = engine.getCurrentPlayer()
-            val card = AdvancedAI.chooseCard(ai, engine)
-            engine.playCard(ai, card)
-        }
-    }
-
-    /* ================= LOBBY ================= */
-
-    private fun broadcastLobby() {
-
-        val lobbyJson = lobby.toJson()
-
-        val message =
-            NetworkMessage.createLobbyState(
-                hostId = "SERVER",
-                lobbyJson = lobbyJson
-            )
-
-        clients.forEach {
-            sendToClient(it, message)
+            val ai = gameEngine.getCurrentPlayer()
+            val card = AdvancedAI.chooseCard(ai, gameEngine)
+            gameEngine.playCard(ai, card)
         }
     }
 
@@ -222,16 +165,14 @@ class NetworkGameServer(
 
     private fun broadcastFullState() {
 
-        val engine = gameEngine ?: return
-
         val stateJson =
-            NetworkMessage.getGson().toJson(engine)
+            NetworkMessage.getGson().toJson(gameEngine)
 
         val message =
             NetworkMessage.createStateSync(
                 hostId = "SERVER",
                 stateJson = stateJson,
-                trick = engine.trickNumber
+                trick = gameEngine.trickNumber
             )
 
         clients.forEach {
@@ -258,6 +199,23 @@ class NetworkGameServer(
         try { client.socket.close() } catch (_: Exception) {}
 
         broadcastLobby()
+    }
+
+    /* ================= LOBBY ================= */
+
+    private fun broadcastLobby() {
+
+        val lobbyJson = lobby.toJson()
+
+        val message =
+            NetworkMessage.createLobbyState(
+                hostId = "SERVER",
+                lobbyJson = lobbyJson
+            )
+
+        clients.forEach {
+            sendToClient(it, message)
+        }
     }
 
     /* ================= SEND ================= */
