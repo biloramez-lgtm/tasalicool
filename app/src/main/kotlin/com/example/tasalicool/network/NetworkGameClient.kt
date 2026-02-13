@@ -42,7 +42,6 @@ class NetworkGameClient(
                 isConnected.set(true)
                 onConnected()
 
-                // إرسال JOIN رسمي
                 sendMessage(
                     NetworkMessage.createJoin(
                         playerId = playerId,
@@ -107,8 +106,14 @@ class NetworkGameClient(
                 Game400Engine::class.java
             )
 
-        // مزامنة آمنة
-        gameEngine.forceSyncFromServer(serverEngine)
+        // مزامنة مباشرة آمنة
+        gameEngine.players.clear()
+        gameEngine.players.addAll(serverEngine.players)
+
+        gameEngine.currentTrick.clear()
+        gameEngine.currentTrick.addAll(serverEngine.currentTrick)
+
+        gameEngine.startNewRound() // لضمان تحديث الحالة داخلياً
     }
 
     /* ================= PLAY CARD ================= */
@@ -117,7 +122,6 @@ class NetworkGameClient(
 
         if (!isConnected.get()) return
 
-        // منع اللعب إذا ليس دورك
         if (gameEngine.getCurrentPlayer().id != playerId) return
 
         val message = NetworkMessage.createPlayCard(
