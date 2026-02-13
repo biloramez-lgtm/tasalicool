@@ -58,23 +58,12 @@ fun Game400Screen(
 
     val scaleAnim = remember { Animatable(1f) }
 
-    /* ===== SCORE SCALE ANIMATION ===== */
-
     LaunchedEffect(totalScore) {
         if (totalScore != previousTotal) {
             previousTotal = totalScore
             scaleAnim.animateTo(1.15f, animationSpec = spring())
             delay(250)
             scaleAnim.animateTo(1f, animationSpec = spring())
-        }
-    }
-
-    /* ===== CLEAR TRICK ===== */
-
-    LaunchedEffect(engine.currentTrick.size) {
-        if (engine.currentTrick.size == 4 && networkClient == null) {
-            delay(1200)
-            engine.clearTrickAfterDelay()
         }
     }
 
@@ -89,8 +78,6 @@ fun Game400Screen(
                 .fillMaxSize()
                 .padding(12.dp)
         ) {
-
-            /* ===== TOP BAR ===== */
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -118,100 +105,15 @@ fun Game400Screen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            /* ===== TOP PLAYER ===== */
-
-            PlayerSideInfo(
-                player = topPlayer,
-                isCurrentTurn = engine.getCurrentPlayer() == topPlayer
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            /* ===== CENTER TABLE ===== */
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                PlayerVerticalInfo(
-                    player = leftPlayer,
-                    isCurrentTurn = engine.getCurrentPlayer() == leftPlayer
-                )
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
-                    Text("الأكلة", color = Color.White)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        engine.currentTrick.forEach { trick ->
-                            CardView(card = trick.second)
-                        }
-                    }
-                }
-
-                PlayerVerticalInfo(
-                    player = rightPlayer,
-                    isCurrentTurn = engine.getCurrentPlayer() == rightPlayer
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            /* ===== LOCAL PLAYER ===== */
-
-            PlayerSideInfo(
-                player = localPlayer,
-                isCurrentTurn = engine.getCurrentPlayer() == localPlayer
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(localPlayer.hand) { card ->
-                    CompactCardView(
-                        card = card,
-                        isSelected = card == selectedCard,
-                        onClick = {
-                            if (
-                                engine.phase == GamePhase.PLAYING &&
-                                engine.getCurrentPlayer() == localPlayer
-                            ) {
-                                selectedCard = card
-                            }
-                        }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
             Button(
-                onClick = {
-                    selectedCard?.let { card ->
-                        if (networkClient != null) {
-                            networkClient.playCard(card)
-                        } else {
-                            engine.playCard(localPlayer, card)
-                        }
-                        selectedCard = null
-                    }
-                },
-                enabled =
-                    selectedCard != null &&
-                    engine.phase == GamePhase.PLAYING &&
-                    engine.getCurrentPlayer() == localPlayer,
+                onClick = { },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("لعب الورقة")
             }
         }
-
-        /* ===== SCORE CARD ===== */
 
         val targetColor = when {
             team1Score > team2Score -> Color(0xFF2E7D32)
