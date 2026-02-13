@@ -22,7 +22,7 @@ fun JoinGameScreen(
 ) {
 
     var ipAddress by remember { mutableStateOf("") }
-    var statusText by remember { mutableStateOf("🔴 غير متصل") }
+    var statusText by remember { mutableStateOf("🔴 Not Connected") }
     var connected by remember { mutableStateOf(false) }
     var ready by remember { mutableStateOf(false) }
 
@@ -41,42 +41,42 @@ fun JoinGameScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
-            text = "🎮 Join Multiplayer",
+            text = "🎮 Multiplayer Lobby",
             style = MaterialTheme.typography.headlineMedium
         )
 
-        Spacer(modifier = Modifier.height(25.dp))
+        Spacer(modifier = Modifier.height(30.dp))
 
-        /* ================= CONNECTION CARD ================= */
+        /* ================= CONNECTION SECTION ================= */
 
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
 
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(18.dp)
             ) {
 
                 Text(
-                    text = "🔗 Server Connection",
+                    text = "🔗 Connect to Host",
                     style = MaterialTheme.typography.titleMedium
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(15.dp))
 
                 OutlinedTextField(
                     value = ipAddress,
                     onValueChange = { ipAddress = it },
-                    label = { Text("Server IP Address") },
+                    label = { Text("Host IP Address") },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !connected,
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number
+                        keyboardType = KeyboardType.Text
                     )
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(15.dp))
 
                 Text(
                     text = statusText,
@@ -86,7 +86,7 @@ fun JoinGameScreen(
                         Color(0xFFF44336)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 if (!connected) {
 
@@ -98,7 +98,7 @@ fun JoinGameScreen(
                                 port = 5000,
                                 onConnected = {
                                     connected = true
-                                    statusText = "🟢 Connected to host"
+                                    statusText = "🟢 Connected"
                                 },
                                 onDisconnected = {
                                     connected = false
@@ -134,36 +134,36 @@ fun JoinGameScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(25.dp))
+        Spacer(modifier = Modifier.height(30.dp))
 
-        /* ================= READY CARD ================= */
+        /* ================= READY SECTION ================= */
 
         if (connected) {
 
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
 
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
 
                     Text(
-                        text = "🎯 Game Status",
+                        text = "🎯 Player Status",
                         style = MaterialTheme.typography.titleMedium
                     )
 
-                    Spacer(modifier = Modifier.height(15.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     if (!ready) {
 
                         Button(
                             onClick = {
-                                client.sendReady()
+                                client.sendReady()   // لازم تضيفها في NetworkGameClient
                                 ready = true
-                                statusText = "🟢 Ready - Waiting for host..."
+                                statusText = "🟢 Ready - Waiting for Host"
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -177,13 +177,13 @@ fun JoinGameScreen(
                                 .fillMaxWidth()
                                 .background(
                                     Color(0xFF4CAF50),
-                                    RoundedCornerShape(12.dp)
+                                    RoundedCornerShape(14.dp)
                                 )
-                                .padding(14.dp),
+                                .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "✅ You are Ready\nWaiting for Host to Start...",
+                                text = "✅ You are READY\nWaiting for Host to Start Game...",
                                 color = Color.White
                             )
                         }
