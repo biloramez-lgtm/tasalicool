@@ -2,6 +2,7 @@ package com.example.tasalicool.models
 
 import com.example.tasalicool.game.AdvancedAI
 import com.example.tasalicool.game.GameMode
+import com.google.gson.Gson
 import java.io.Serializable
 import java.util.UUID
 
@@ -17,30 +18,25 @@ class Game400Engine(
     var isNetworkClient = false
 
     private val deck = Deck()
+    private val gson = Gson()
 
     var phase =
         if (gameMode == GameMode.WIFI_MULTIPLAYER)
             GamePhase.WAITING_FOR_PLAYERS
         else
             GamePhase.BIDDING
-        private set
 
     var currentPlayerIndex = 0
-        private set
 
     var dealerIndex = -1
-        private set
 
     var trickNumber = 0
-        private set
 
     val currentTrick = mutableListOf<Pair<Player, Card>>()
 
     var lastTrickWinner: Player? = null
-        private set
 
     var winner: Player? = null
-        private set
 
     /* ================= START ================= */
 
@@ -75,6 +71,34 @@ class Game400Engine(
 
         onGameUpdated?.invoke()
         processAIBidding()
+    }
+
+    /* ================= NETWORK SYNC ================= */
+
+    fun applyNetworkState(stateJson: String) {
+
+        val serverEngine =
+            gson.fromJson(
+                stateJson,
+                Game400Engine::class.java
+            )
+
+        synchronized(this) {
+
+            players.clear()
+            players.addAll(serverEngine.players)
+
+            currentTrick.clear()
+            currentTrick.addAll(serverEngine.currentTrick)
+
+            phase = serverEngine.phase
+            trickNumber = serverEngine.trickNumber
+            winner = serverEngine.winner
+            currentPlayerIndex = serverEngine.currentPlayerIndex
+            dealerIndex = serverEngine.dealerIndex
+        }
+
+        onGameUpdated?.invoke()
     }
 
     /* ================= BIDDING ================= */
@@ -201,15 +225,11 @@ class Game400Engine(
         if (currentTrick.isEmpty()) return true
 
         val leadSuit = currentTrick.first().second.suit
-
-        val hasSameSuit =
-            player.hand.any { it.suit == leadSuit }
+        val hasSameSuit = player.hand.any { it.suit == leadSuit }
 
         return if (hasSameSuit) {
             card.suit == leadSuit
-        } else {
-            true
-        }
+        } else true
     }
 
     private fun determineTrickWinner(): Player {
@@ -285,7 +305,6 @@ class Game400Engine(
             }
 
             val aiCount = totalPlayers - humans
-
             var index = 0
 
             repeat(humans) {
