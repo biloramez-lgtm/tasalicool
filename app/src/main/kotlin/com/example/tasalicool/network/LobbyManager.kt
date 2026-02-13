@@ -2,7 +2,6 @@ package com.example.tasalicool.network
 
 import com.example.tasalicool.models.*
 import com.example.tasalicool.game.GameMode
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 class LobbyManager {
@@ -11,10 +10,11 @@ class LobbyManager {
         val networkId: String,
         var name: String,
         var isReady: Boolean = false,
-        var isHost: Boolean = false
+        var isHost: Boolean = false,
+        var isAI: Boolean = false
     )
 
-    private val players = ConcurrentHashMap<String, LobbyPlayer>()
+    private val players = CopyOnWriteArrayList<LobbyPlayer>()
     private val waitingPlayers = CopyOnWriteArrayList<LobbyPlayer>()
 
     var gameStarted = false
@@ -22,7 +22,7 @@ class LobbyManager {
 
     private val MAX_PLAYERS = 4
 
-    /* ================= ADD PLAYER ================= */
+    /* ================= ADD HUMAN ================= */
 
     fun addPlayer(networkId: String, name: String): LobbyPlayer? {
 
@@ -39,55 +39,69 @@ class LobbyManager {
         val player = LobbyPlayer(
             networkId = networkId,
             name = name,
-            isHost = isFirst
+            isHost = isFirst,
+            isAI = false
         )
 
-        players[networkId] = player
+        players.add(player)
         return player
+    }
+
+    /* ================= ADD AI ================= */
+
+    fun addAIPlayer(name: String) {
+
+        if (players.size >= MAX_PLAYERS) return
+
+        val ai = LobbyPlayer(
+            networkId = "AI_${players.size + 1}",
+            name = name,
+            isReady = true,
+            isAI = true
+        )
+
+        players.add(ai)
     }
 
     /* ================= REMOVE ================= */
 
     fun removePlayer(networkId: String) {
 
-        players.remove(networkId)
+        players.removeIf { it.networkId == networkId }
         waitingPlayers.removeIf { it.networkId == networkId }
 
-        // إعادة تعيين Host إذا خرج
-        if (players.isNotEmpty() && players.values.none { it.isHost }) {
-            players.values.first().isHost = true
+        // إعادة تعيين Host
+        if (players.isNotEmpty() && players.none { it.isHost }) {
+            players.first().isHost = true
         }
     }
 
     /* ================= READY ================= */
 
     fun setReady(networkId: String, ready: Boolean) {
-        players[networkId]?.isReady = ready
+        players.find { it.networkId == networkId }?.isReady = ready
     }
 
     fun areAllHumansReady(): Boolean {
-        return players.isNotEmpty() &&
-                players.values.all { it.isReady }
+        return players
+            .filter { !it.isAI }
+            .all { it.isReady }
     }
 
     fun getHost(): LobbyPlayer? {
-        return players.values.firstOrNull { it.isHost }
+        return players.firstOrNull { it.isHost }
     }
 
     fun getPlayers(): List<LobbyPlayer> {
-        return players.values.toList()
-    }
-
-    fun getWaitingPlayers(): List<LobbyPlayer> {
-        return waitingPlayers.toList()
+        return players.toList()
     }
 
     fun getHumanCount(): Int {
-        return players.size
+        return players.count { !it.isAI }
     }
 
-    fun getRequiredAI(): Int {
-        return MAX_PLAYERS - players.size
+    fun getTotalCount(): Int {
+        return players.size
     }
 
     /* ================= START GAME ================= */
@@ -96,6 +110,11 @@ class LobbyManager {
 
         if (gameStarted) return false
         if (players.isEmpty()) return false
+        if (players.size > MAX_PLAYERS) return false
+
+        // لازم يكون العدد النهائي 4
+        if (players.size != MAX_PLAYERS) return false
+
         if (!areAllHumansReady()) return false
 
         return true
@@ -113,43 +132,12 @@ class LobbyManager {
 
     fun createGameEngine(): Game400Engine {
 
-        val humanCount = players.size
+        val humanCount = getHumanCount()
 
         return Game400Engine(
             gameMode = GameMode.WIFI_MULTIPLAYER,
             humanCount = humanCount
         )
-    }
-
-    /* ================= REPLACE AI WITH WAITING ================= */
-
-    fun replaceAIWithWaitingPlayers(engine: Game400Engine) {
-
-        if (waitingPlayers.isEmpty()) return
-
-        val aiPlayers =
-            engine.players.filter { it.type == PlayerType.AI }
-
-        if (aiPlayers.isEmpty()) return
-
-        val iterator = waitingPlayers.iterator()
-
-        for (ai in aiPlayers) {
-
-            if (!iterator.hasNext()) break
-
-            val waiting = iterator.next()
-            val index = engine.players.indexOf(ai)
-
-            engine.players[index] = Player(
-                id = waiting.networkId,
-                name = waiting.name,
-                type = PlayerType.HUMAN,
-                teamId = ai.teamId
-            )
-
-            iterator.remove()
-        }
     }
 
     /* ================= RESET AFTER GAME ================= */
@@ -158,8 +146,15 @@ class LobbyManager {
 
         gameStarted = false
 
-        players.values.forEach {
+        players.removeIf { it.isAI }
+
+        players.forEach {
             it.isReady = false
+            it.isHost = false
+        }
+
+        if (players.isNotEmpty()) {
+            players.first().isHost = true
         }
     }
 
@@ -169,10 +164,9 @@ class LobbyManager {
 
         return NetworkMessage.getGson().toJson(
             mapOf(
-                "players" to players.values,
-                "waiting" to waitingPlayers,
+                "players" to players,
                 "started" to gameStarted,
-                "requiredAI" to getRequiredAI()
+                "humanCount" to getHumanCount()
             )
         )
     }
