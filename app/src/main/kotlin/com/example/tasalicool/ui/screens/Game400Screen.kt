@@ -35,7 +35,9 @@ fun Game400Screen(navController: NavHostController) {
     val team1Score = engine.players[0].score + engine.players[2].score
     val team2Score = engine.players[1].score + engine.players[3].score
 
-    /* ================= SCORE PULSE LOGIC ================= */
+    val winningTeam = engine.winner?.teamId
+
+    /* ================= SCORE ANIMATION ================= */
 
     val totalScore = team1Score + team2Score
     var previousTotal by remember { mutableStateOf(totalScore) }
@@ -185,7 +187,7 @@ fun Game400Screen(navController: NavHostController) {
             }
         }
 
-        /* ================= ANIMATED SCORE BADGE ================= */
+        /* ================= SCORE BADGE ================= */
 
         val targetColor = when {
             team1Score > team2Score -> Color(0xFF2E7D32)
@@ -204,9 +206,7 @@ fun Game400Screen(navController: NavHostController) {
                 .align(Alignment.TopEnd)
                 .padding(12.dp)
                 .scale(scaleAnim.value),
-            colors = CardDefaults.cardColors(
-                containerColor = animatedColor
-            ),
+            colors = CardDefaults.cardColors(containerColor = animatedColor),
             elevation = CardDefaults.cardElevation(defaultElevation = 14.dp)
         ) {
             Row(
@@ -214,11 +214,7 @@ fun Game400Screen(navController: NavHostController) {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
 
-                Icon(
-                    Icons.Default.EmojiEvents,
-                    contentDescription = null,
-                    tint = Color.White
-                )
+                Icon(Icons.Default.EmojiEvents, null, tint = Color.White)
 
                 Spacer(modifier = Modifier.width(6.dp))
 
@@ -227,6 +223,70 @@ fun Game400Screen(navController: NavHostController) {
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
+            }
+        }
+
+        /* ================= WIN SCREEN ================= */
+
+        if (engine.phase == GamePhase.GAME_OVER && winningTeam != null) {
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.75f)),
+                contentAlignment = Alignment.Center
+            ) {
+
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF1B5E20)
+                    ),
+                    elevation = CardDefaults.cardElevation(20.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+
+                        Icon(
+                            Icons.Default.EmojiEvents,
+                            contentDescription = null,
+                            tint = Color.Yellow,
+                            modifier = Modifier.size(64.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            "🏆 الفريق $winningTeam فاز!",
+                            color = Color.White,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Button(
+                            onClick = {
+                                engine.startNewRound()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("إعادة مباراة")
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                navController.popBackStack()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("الخروج")
+                        }
+                    }
+                }
             }
         }
     }
