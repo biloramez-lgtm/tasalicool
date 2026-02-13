@@ -40,7 +40,6 @@ class Game400Engine(
     var winner: Player? = null
         private set
 
-    // ❌ لم نعد نبدأ الجولة تلقائياً
     init {
         // سيتم تشغيل اللعبة من الـ UI عبر startGame()
     }
@@ -224,14 +223,24 @@ class Game400Engine(
 
         players.forEach { it.applyRoundScore() }
 
-        players.forEach { player ->
-            val partner = getPartner(player)
-            if (player.score >= 41 && partner.score > 0) {
-                winner = player
-                phase = GamePhase.GAME_OVER
-                onGameUpdated?.invoke()
-                return
-            }
+        val team1Score = players
+            .filter { it.teamId == 1 }
+            .sumOf { it.score }
+
+        val team2Score = players
+            .filter { it.teamId == 2 }
+            .sumOf { it.score }
+
+        if (team1Score >= 41 || team2Score >= 41) {
+
+            val winningTeamId =
+                if (team1Score >= 41) 1 else 2
+
+            winner = players.first { it.teamId == winningTeamId }
+
+            phase = GamePhase.GAME_OVER
+            onGameUpdated?.invoke()
+            return
         }
 
         phase = GamePhase.ROUND_END
