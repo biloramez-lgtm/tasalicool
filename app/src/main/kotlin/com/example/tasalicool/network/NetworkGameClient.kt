@@ -62,6 +62,9 @@ class NetworkGameClient(
                 isConnected.set(true)
                 readySent = false
 
+                // 🔥 مهم: client ما يشغل AI أبداً
+                gameEngine.isNetworkClient = true
+
                 withContext(Dispatchers.Main) {
                     onConnected()
                 }
@@ -73,7 +76,6 @@ class NetworkGameClient(
                     )
                 )
 
-                // طلب مزامنة مباشرة بعد الدخول
                 requestSync()
 
                 listen()
@@ -199,7 +201,9 @@ class NetworkGameClient(
     fun playCard(card: Card) {
 
         if (!isConnected.get()) return
-        if (gameEngine.getCurrentPlayer().id != playerId) return
+
+        // ❌ لا نتحقق من الدور هنا
+        // السيرفر هو المسؤول الوحيد
 
         val message = NetworkMessage.createPlayCard(
             playerId = playerId,
