@@ -1,4 +1,4 @@
-name: Build APK Stable
+name: Build Debug APK
 
 on:
   push:
@@ -29,11 +29,11 @@ jobs:
       - name: Clean Project
         run: gradle clean --no-daemon --no-build-cache
 
-      - name: Build Debug APK
+      - name: Build Debug APK (Ready To Install)
         run: gradle :app:assembleDebug --no-daemon --no-build-cache
 
-      - name: Upload APK
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: Marolyx-Debug-APK
+          name: tasalicool-debug
           path: app/build/outputs/apk/debug/app-debug.apk
