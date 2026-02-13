@@ -70,7 +70,6 @@ class LobbyManager {
         players.removeIf { it.networkId == networkId }
         waitingPlayers.removeIf { it.networkId == networkId }
 
-        // إعادة تعيين Host
         if (players.isNotEmpty() && players.none { it.isHost }) {
             players.first().isHost = true
         }
@@ -110,12 +109,11 @@ class LobbyManager {
 
         if (gameStarted) return false
         if (players.isEmpty()) return false
-        if (players.size > MAX_PLAYERS) return false
-
-        // لازم يكون العدد النهائي 4
-        if (players.size != MAX_PLAYERS) return false
-
         if (!areAllHumansReady()) return false
+
+        // لا نشترط 4 لاعبين هنا
+        // السيرفر سيكملهم AI
+        if (players.size > MAX_PLAYERS) return false
 
         return true
     }
