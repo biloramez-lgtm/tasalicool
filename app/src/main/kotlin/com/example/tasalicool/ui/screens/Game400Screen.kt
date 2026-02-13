@@ -64,6 +64,40 @@ fun Game400Screen(
 
             GamePhase.BIDDING -> {
 
+                // 🔥 عرض يد اللاعب أثناء البِدّينغ
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+
+                    Text(
+                        text = localPlayer.name,
+                        color = Color.White,
+                        modifier = highlight(localPlayer)
+                            .padding(6.dp)
+                    )
+
+                    Spacer(Modifier.height(6.dp))
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(localPlayer.hand) { card ->
+                            Card(
+                                modifier = Modifier.size(60.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("${card.rank} ${card.suit}")
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                }
+
                 if (currentPlayer == localPlayer) {
 
                     Column(
@@ -108,7 +142,6 @@ fun Game400Screen(
 
             GamePhase.PLAYING -> {
 
-                // ===== TOP PLAYER =====
                 Text(
                     text = "${topPlayer.name} (${topPlayer.hand.size})",
                     color = Color.White,
@@ -118,7 +151,6 @@ fun Game400Screen(
                         .padding(8.dp)
                 )
 
-                // ===== LEFT PLAYER =====
                 Text(
                     text = "${leftPlayer.name} (${leftPlayer.hand.size})",
                     color = Color.White,
@@ -128,7 +160,6 @@ fun Game400Screen(
                         .padding(8.dp)
                 )
 
-                // ===== RIGHT PLAYER =====
                 Text(
                     text = "${rightPlayer.name} (${rightPlayer.hand.size})",
                     color = Color.White,
@@ -138,7 +169,6 @@ fun Game400Screen(
                         .padding(8.dp)
                 )
 
-                // ===== CURRENT TRICK =====
                 Row(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -160,7 +190,6 @@ fun Game400Screen(
                     }
                 }
 
-                // ===== LOCAL PLAYER =====
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
