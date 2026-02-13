@@ -110,7 +110,8 @@ class Game400Engine(
     private fun processAIBidding() {
         if (isNetworkClient) return
 
-        while (phase == GamePhase.BIDDING &&
+        while (
+            phase == GamePhase.BIDDING &&
             getCurrentPlayer().type == PlayerType.AI
         ) {
             val ai = getCurrentPlayer()
@@ -152,6 +153,21 @@ class Game400Engine(
         onGameUpdated?.invoke()
         processAITurns()
         return true
+    }
+
+    /* 🔥 أضفناها لأنها كانت ناقصة */
+    private fun processAITurns() {
+
+        if (isNetworkClient) return
+
+        while (
+            phase == GamePhase.PLAYING &&
+            getCurrentPlayer().type == PlayerType.AI
+        ) {
+            val ai = getCurrentPlayer()
+            val card = AdvancedAI.chooseCard(ai, this)
+            playCard(ai, card)
+        }
     }
 
     private fun finishTrick() {
@@ -198,6 +214,7 @@ class Game400Engine(
         }
     }
 
+    /* 🔥 عدلناها وأزلنا rankValue */
     private fun determineTrickWinner(): Player {
 
         val leadSuit = currentTrick.first().second.suit
@@ -205,7 +222,7 @@ class Game400Engine(
         val winningPlay =
             currentTrick
                 .filter { it.second.suit == leadSuit }
-                .maxByOrNull { it.second.rankValue }!!
+                .maxByOrNull { it.second.rank.ordinal }!!
 
         return winningPlay.first
     }
