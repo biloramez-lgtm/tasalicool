@@ -6,12 +6,13 @@ import com.example.tasalicool.models.Game400Engine
 
 class GameViewModel : ViewModel() {
 
-    val engineState = mutableStateOf(Game400Engine())
+    val engine = Game400Engine()
+    val refresh = mutableStateOf(0)
 
     init {
-        engineState.value.onGameUpdated = {
-            engineState.value = engineState.value
+        engine.onGameUpdated = {
+            refresh.value++
         }
-        engineState.value.startGame()
+        engine.startGame()
     }
 }
