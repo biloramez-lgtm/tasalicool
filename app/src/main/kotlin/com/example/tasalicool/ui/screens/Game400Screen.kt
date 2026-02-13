@@ -25,11 +25,24 @@ fun Game400Screen(
     gameEngine: Game400Engine
 ) {
 
-    val engine = gameEngine
+    val engine = remember { gameEngine }
+
+    var refreshTrigger by remember { mutableStateOf(0) }
+
+    DisposableEffect(engine) {
+        val update = {
+            refreshTrigger++
+        }
+        engine.onGameUpdated?.invoke()
+        onDispose { }
+    }
 
     LaunchedEffect(Unit) {
         engine.startGame()
     }
+
+    // هذا يجبر Compose على إعادة الرسم
+    refreshTrigger
 
     if (engine.players.size < 4) {
         Box(
@@ -47,9 +60,7 @@ fun Game400Screen(
     fun playerModifier(player: Player): Modifier {
         return if (player == currentPlayer) {
             Modifier.border(3.dp, Color.Green)
-        } else {
-            Modifier
-        }
+        } else Modifier
     }
 
     Box(
@@ -59,8 +70,6 @@ fun Game400Screen(
     ) {
 
         when (engine.phase) {
-
-            /* ================= BIDDING ================= */
 
             GamePhase.BIDDING -> {
 
@@ -75,8 +84,7 @@ fun Game400Screen(
 
                         Text(
                             text = stringResource(R.string.how_many_tricks),
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleMedium
+                            color = Color.White
                         )
 
                         Spacer(Modifier.height(16.dp))
@@ -107,20 +115,15 @@ fun Game400Screen(
                 }
             }
 
-            /* ================= PLAYING ================= */
-
             GamePhase.PLAYING -> {
 
                 val leftPlayer = engine.players[1]
                 val topPlayer = engine.players[2]
                 val rightPlayer = engine.players[3]
 
-                // ===== Player Names with Highlight =====
-
                 Text(
                     text = topPlayer.name,
                     color = Color.White,
-                    fontWeight = if (topPlayer == currentPlayer) FontWeight.Bold else FontWeight.Normal,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .then(playerModifier(topPlayer))
@@ -130,7 +133,6 @@ fun Game400Screen(
                 Text(
                     text = leftPlayer.name,
                     color = Color.White,
-                    fontWeight = if (leftPlayer == currentPlayer) FontWeight.Bold else FontWeight.Normal,
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .then(playerModifier(leftPlayer))
@@ -140,7 +142,6 @@ fun Game400Screen(
                 Text(
                     text = rightPlayer.name,
                     color = Color.White,
-                    fontWeight = if (rightPlayer == currentPlayer) FontWeight.Bold else FontWeight.Normal,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .then(playerModifier(rightPlayer))
@@ -150,69 +151,12 @@ fun Game400Screen(
                 Text(
                     text = localPlayer.name,
                     color = Color.White,
-                    fontWeight = if (localPlayer == currentPlayer) FontWeight.Bold else FontWeight.Normal,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .then(playerModifier(localPlayer))
                         .padding(6.dp)
                 )
-
-                // ===== Center Trick =====
-
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    engine.currentTrick.forEach { (player, card) ->
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color.White
-                            ),
-                            modifier = Modifier.padding(4.dp)
-                        ) {
-                            Text(
-                                text = "${card.rank} ${card.suit}",
-                                modifier = Modifier.padding(12.dp),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                // ===== Player Hand =====
-
-                LazyRow(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 60.dp)
-                ) {
-                    items(localPlayer.hand) { card ->
-
-                        val isMyTurn = currentPlayer == localPlayer
-
-                        Card(
-                            modifier = Modifier
-                                .padding(6.dp)
-                                .alpha(if (isMyTurn) 1f else 0.4f)
-                                .clickable(enabled = isMyTurn) {
-                                    engine.playCard(localPlayer, card)
-                                },
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color.White
-                            )
-                        ) {
-                            Text(
-                                text = "${card.rank} ${card.suit}",
-                                modifier = Modifier.padding(14.dp),
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
-                        }
-                    }
-                }
             }
-
-            /* ================= GAME OVER ================= */
 
             GamePhase.GAME_OVER -> {
                 Box(Modifier.align(Alignment.Center)) {
@@ -221,8 +165,7 @@ fun Game400Screen(
                             R.string.winner_text,
                             engine.winner?.name ?: ""
                         ),
-                        color = Color.Yellow,
-                        style = MaterialTheme.typography.titleLarge
+                        color = Color.Yellow
                     )
                 }
             }
