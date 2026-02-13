@@ -29,9 +29,16 @@ fun JoinGameScreen(
 
     val client = remember { NetworkGameClient(gameEngine) }
 
-    /* ================= LISTEN FOR START FROM HOST ================= */
+    /* ================= IMPORTANT ================= */
+    // هذا الجهاز هو CLIENT وليس HOST
+    LaunchedEffect(Unit) {
+        gameEngine.isNetworkClient = true
+    }
+
+    /* ================= LISTEN FOR START ================= */
 
     LaunchedEffect(Unit) {
+
         client.onGameStarted = {
             if (!hasNavigated) {
                 hasNavigated = true
@@ -39,6 +46,11 @@ fun JoinGameScreen(
                     popUpTo("joinGame") { inclusive = true }
                 }
             }
+        }
+
+        // عند وصول Sync من السيرفر
+        client.onStateSynced = {
+            gameEngine.onGameUpdated?.invoke()
         }
     }
 
@@ -61,7 +73,7 @@ fun JoinGameScreen(
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        /* ================= CONNECTION SECTION ================= */
+        /* ================= CONNECTION ================= */
 
         Card(
             shape = RoundedCornerShape(18.dp),
@@ -111,6 +123,9 @@ fun JoinGameScreen(
                                 onConnected = {
                                     connected = true
                                     statusText = "🟢 Connected to Host"
+
+                                    // طلب مزامنة فورية
+                                    client.requestSync()
                                 },
                                 onDisconnected = {
                                     connected = false
@@ -150,7 +165,7 @@ fun JoinGameScreen(
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        /* ================= READY SECTION ================= */
+        /* ================= READY ================= */
 
         if (connected) {
 
@@ -177,7 +192,8 @@ fun JoinGameScreen(
                             onClick = {
                                 client.sendReady()
                                 ready = true
-                                statusText = "🟢 Ready - Waiting for Host..."
+                                statusText =
+                                    "🟢 Ready - Waiting for Host..."
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
