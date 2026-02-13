@@ -67,6 +67,34 @@ object AdvancedAI {
         return min(max(2, bid), 13)
     }
 
+    /* ================= NEW SMART BID ================= */
+
+    fun chooseBid(
+        player: Player,
+        engine: Game400Engine,
+        minBid: Int
+    ): Int {
+
+        val baseBid = calculateBid(player)
+
+        // ضغط الجولة
+        val needed = player.bid - player.tricksWon
+        val roundPressure =
+            if (engine.trickNumber < 3) 0
+            else if (engine.trickNumber < 8) 1
+            else 2
+
+        var finalBid = baseBid + roundPressure
+
+        // لا ينزل تحت الحد الأدنى
+        finalBid = max(minBid, finalBid)
+
+        // لا يتجاوز 13
+        finalBid = min(13, finalBid)
+
+        return finalBid
+    }
+
     /* ================= DECISION ENGINE ================= */
 
     fun chooseCard(
