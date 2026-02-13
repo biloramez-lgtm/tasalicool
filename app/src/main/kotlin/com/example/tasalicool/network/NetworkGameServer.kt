@@ -34,6 +34,7 @@ class NetworkGameServer(
 
     private val lobby = LobbyManager()
     private val networkPlayerMap = mutableMapOf<String, Player>()
+    private val MAX_PLAYERS = 4
 
     /* ========================================================= */
     /* ======================= START SERVER ==================== */
@@ -62,6 +63,11 @@ class NetworkGameServer(
 
                     val socket = serverSocket?.accept() ?: continue
                     socket.tcpNoDelay = true
+
+                    if (lobby.getPlayers().size >= MAX_PLAYERS) {
+                        socket.close()
+                        continue
+                    }
 
                     val networkId = "P${playerCounter.incrementAndGet()}"
                     val client = ClientConnection(socket, networkId)
@@ -127,17 +133,7 @@ class NetworkGameServer(
         val name = message.playerName ?: "Player"
 
         val lobbyPlayer = lobby.addPlayer(client.playerId, name)
-
-        if (lobbyPlayer == null) {
-            sendToClient(
-                client,
-                NetworkMessage.createError(
-                    client.playerId,
-                    "Game already started."
-                )
-            )
-            return
-        }
+        if (lobbyPlayer == null) return
 
         broadcastLobby()
     }
@@ -155,16 +151,16 @@ class NetworkGameServer(
 
         val host = lobby.getHost() ?: return
 
+        // فقط الهوست يقدر يبدأ
         if (host.networkId != client.playerId) return
 
-        // 🔥 لازم يكون العدد 4
-        if (lobby.getPlayers().size > 4) return
+        // تأكد أن كل البشر Ready
+        if (!lobby.areAllHumansReady()) return
 
-        // 🔥 كمّل AI إذا أقل من 4
+        // كمّل AI لحد 4
         fillWithAIPlayers()
 
-        // 🔥 تأكد أن الكل Ready
-        if (!lobby.canStartGame()) return
+        if (lobby.getPlayers().size != MAX_PLAYERS) return
 
         if (!lobby.startGame()) return
 
@@ -182,10 +178,13 @@ class NetworkGameServer(
     private fun fillWithAIPlayers() {
 
         val currentSize = lobby.getPlayers().size
-        val missing = 4 - currentSize
+        val missing = MAX_PLAYERS - currentSize
 
         repeat(missing) { index ->
-            lobby.addAIPlayer("AI_${index + 1}")
+            lobby.addPlayer(
+                "AI_${index + 1}",
+                "AI_${index + 1}"
+            )
         }
     }
 
@@ -212,8 +211,7 @@ class NetworkGameServer(
 
         lobby.getPlayers().forEachIndexed { index, lobbyPlayer ->
 
-            if (!lobbyPlayer.isAI && index < humanPlayers.size) {
-
+            if (index < humanPlayers.size) {
                 networkPlayerMap[lobbyPlayer.networkId] =
                     humanPlayers[index]
             }
@@ -268,7 +266,7 @@ class NetworkGameServer(
 
         broadcast(message)
 
-        withContextSafeMain {
+        CoroutineScope(Dispatchers.Main).launch {
             onGameUpdated?.invoke()
         }
     }
@@ -327,7 +325,7 @@ class NetworkGameServer(
 
         try { client.socket.close() } catch (_: Exception) {}
 
-        withContextSafeMain {
+        CoroutineScope(Dispatchers.Main).launch {
             onClientDisconnected?.invoke(client.playerId)
         }
 
@@ -351,12 +349,6 @@ class NetworkGameServer(
         clients.clear()
         scope.cancel()
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    }
-
-    private fun withContextSafeMain(block: () -> Unit) {
-        CoroutineScope(Dispatchers.Main).launch {
-            block()
-        }
     }
 }
 
