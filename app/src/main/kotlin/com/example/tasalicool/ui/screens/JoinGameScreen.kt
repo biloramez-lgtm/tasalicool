@@ -8,8 +8,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.tasalicool.models.Game400Engine
@@ -91,10 +89,7 @@ fun JoinGameScreen(
                     onValueChange = { ipAddress = it },
                     label = { Text("Host IP Address") },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !connected,
-                    keyboardOptions = KeyboardOptions.Default.copy(
-                        keyboardType = KeyboardType.Text
-                    )
+                    enabled = !connected
                 )
 
                 Spacer(modifier = Modifier.height(15.dp))
