@@ -24,31 +24,28 @@ fun Game400Screen(navController: NavHostController) {
     val engine = remember { Game400Engine() }
 
     var selectedCard by remember { mutableStateOf<Card?>(null) }
-    var uiTrigger by remember { mutableStateOf(0) }
     var showRoundDialog by remember { mutableStateOf(false) }
 
     val localPlayer = engine.players[0]
 
-    /* ================= MAIN EFFECT ================= */
+    /* ================= ROUND END WATCHER ================= */
 
-    LaunchedEffect(engine.currentPlayerIndex, engine.phase, uiTrigger) {
-
+    LaunchedEffect(engine.phase) {
         if (engine.phase == GamePhase.ROUND_END) {
             showRoundDialog = true
         }
     }
 
-    /* ================= CLEAR TRICK EFFECT ================= */
+    /* ================= CLEAR TRICK AFTER 4 CARDS ================= */
 
     LaunchedEffect(engine.currentTrick.size) {
         if (engine.currentTrick.size == 4) {
             delay(1200)
             engine.clearTrickAfterDelay()
-            uiTrigger++
         }
     }
 
-    /* ================= BIDDING UI ================= */
+    /* ================= BIDDING ================= */
 
     if (engine.phase == GamePhase.BIDDING &&
         engine.getCurrentPlayer() == localPlayer
@@ -69,7 +66,6 @@ fun Game400Screen(navController: NavHostController) {
                         Button(
                             onClick = {
                                 engine.placeBid(localPlayer, number)
-                                uiTrigger++
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -93,7 +89,6 @@ fun Game400Screen(navController: NavHostController) {
                 Button(onClick = {
                     showRoundDialog = false
                     engine.startNewRound()
-                    uiTrigger++
                 }) { Text("جولة جديدة") }
             },
             title = { Text("انتهت الجولة") },
@@ -137,6 +132,8 @@ fun Game400Screen(navController: NavHostController) {
             .padding(12.dp)
     ) {
 
+        /* ===== HEADER ===== */
+
         Row(verticalAlignment = Alignment.CenterVertically) {
 
             IconButton(onClick = { navController.popBackStack() }) {
@@ -153,12 +150,16 @@ fun Game400Screen(navController: NavHostController) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        /* ===== TOP PLAYER ===== */
+
         PlayerSideInfo(
             player = topPlayer,
             isCurrentTurn = engine.getCurrentPlayer() == topPlayer
         )
 
         Spacer(modifier = Modifier.height(8.dp))
+
+        /* ===== CENTER TABLE ===== */
 
         Row(
             modifier = Modifier
@@ -193,6 +194,8 @@ fun Game400Screen(navController: NavHostController) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        /* ===== LOCAL PLAYER ===== */
+
         PlayerSideInfo(
             player = localPlayer,
             isCurrentTurn = engine.getCurrentPlayer() == localPlayer
@@ -223,7 +226,6 @@ fun Game400Screen(navController: NavHostController) {
                 selectedCard?.let {
                     if (engine.playCard(localPlayer, it)) {
                         selectedCard = null
-                        uiTrigger++
                     }
                 }
             },
