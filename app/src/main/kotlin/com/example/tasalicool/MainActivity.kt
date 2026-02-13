@@ -45,7 +45,7 @@ fun TasalicoolNavGraph(
     navController: NavHostController
 ) {
 
-    // 🔥 أنشئ محرك واحد مشترك للتطبيق
+    // 🔥 محرك واحد مشترك لكل التطبيق
     val gameEngine = remember { Game400Engine() }
 
     NavHost(
@@ -57,12 +57,20 @@ fun TasalicoolNavGraph(
             HomeScreen(navController)
         }
 
+        // ✅ عدلنا هون
         composable("game_400") {
-            Game400Screen(navController)
+            Game400Screen(
+                navController = navController,
+                gameEngine = gameEngine
+            )
         }
 
+        // ✅ وعدلنا هون
         composable("resume_game") {
-            Game400Screen(navController)
+            Game400Screen(
+                navController = navController,
+                gameEngine = gameEngine
+            )
         }
 
         composable("about") {
