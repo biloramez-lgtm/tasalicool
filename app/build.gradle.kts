@@ -51,8 +51,9 @@ android {
         buildConfig = true
     }
 
+    // 🔥 تم رفع النسخة لتكون متوافقة مع BOM
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
 
     packaging {
@@ -73,7 +74,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.0")
 
     /* =========================
-       Coroutines (للشبكة)
+       Coroutines
        ========================= */
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -87,6 +88,9 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
+
+    implementation("androidx.compose.foundation:foundation") // ✅ مهم للـ Keyboard
+
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
@@ -103,13 +107,13 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 
     /* =========================
-       Material (XML Support)
+       Material XML
        ========================= */
 
     implementation("com.google.android.material:material:1.12.0")
 
     /* =========================
-       Gson (للشبكة)
+       Gson
        ========================= */
 
     implementation("com.google.code.gson:gson:2.10.1")
