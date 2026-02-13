@@ -130,9 +130,7 @@ class Game400Engine(
                 else -> 4
             }
 
-            // ✅ تم استبدال العشوائي بالذكاء الحقيقي
             val bid = AdvancedAI.chooseBid(ai, this, minBid)
-
             placeBid(ai, bid)
         }
     }
@@ -257,6 +255,32 @@ class Game400Engine(
 
         if (phase != GamePhase.GAME_OVER) {
             phase = GamePhase.ROUND_END
+        }
+
+        onGameUpdated?.invoke()
+    }
+
+    /* ================= COMPATIBILITY (FIX BUILD ERRORS) ================= */
+
+    fun isAITurn(): Boolean {
+        return phase == GamePhase.PLAYING &&
+                getCurrentPlayer().type == PlayerType.AI
+    }
+
+    fun forceSyncFromServer(serverEngine: Game400Engine) {
+
+        this.phase = serverEngine.phase
+        this.currentPlayerIndex = serverEngine.currentPlayerIndex
+        this.dealerIndex = serverEngine.dealerIndex
+        this.trickNumber = serverEngine.trickNumber
+        this.winner = serverEngine.winner
+        this.lastTrickWinner = serverEngine.lastTrickWinner
+
+        this.currentTrick.clear()
+        this.currentTrick.addAll(serverEngine.currentTrick)
+
+        for (i in players.indices) {
+            players[i].updateFromNetwork(serverEngine.players[i])
         }
 
         onGameUpdated?.invoke()
