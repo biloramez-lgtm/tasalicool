@@ -12,7 +12,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class NetworkGameServer(
-    private val port: Int = 5000
+    private val port: Int = 5000,
+    private val onClientConnected: ((String) -> Unit)? = null,
+    private val onClientDisconnected: ((String) -> Unit)? = null,
+    private val onGameUpdated: (() -> Unit)? = null
 ) {
 
     private var serverSocket: ServerSocket? = null
@@ -22,14 +25,10 @@ class NetworkGameServer(
     private val playerCounter = AtomicInteger(0)
 
     private val lobby = LobbyManager()
-
     private var gameEngine: Game400Engine? = null
-
     private val networkPlayerMap = mutableMapOf<String, Player>()
 
-    /* ===================================================== */
-    /* ================= START SERVER ======================= */
-    /* ===================================================== */
+    /* ================= START SERVER ================= */
 
     fun startServer() {
 
@@ -48,6 +47,8 @@ class NetworkGameServer(
                     val client = ClientConnection(socket, networkId)
                     clients.add(client)
 
+                    onClientConnected?.invoke(networkId)
+
                     listenToClient(client)
                 }
 
@@ -55,9 +56,7 @@ class NetworkGameServer(
         }
     }
 
-    /* ===================================================== */
-    /* ================= LISTEN ============================= */
-    /* ===================================================== */
+    /* ================= LISTEN ================= */
 
     private fun listenToClient(client: ClientConnection) {
 
@@ -70,30 +69,20 @@ class NetworkGameServer(
 
                     when (message.action) {
 
-                        GameAction.JOIN -> {
-                            handleJoin(client, message)
-                        }
+                        GameAction.JOIN -> handleJoin(client, message)
 
                         GameAction.READY -> {
                             lobby.setReady(client.playerId, true)
                             broadcastLobby()
                         }
 
-                        GameAction.START_GAME -> {
-                            handleStartGame(client)
-                        }
+                        GameAction.START_GAME -> handleStartGame(client)
 
-                        GameAction.PLAY_CARD -> {
-                            handlePlayCard(client, message)
-                        }
+                        GameAction.PLAY_CARD -> handlePlayCard(client, message)
 
-                        GameAction.REQUEST_SYNC -> {
-                            sendFullStateTo(client)
-                        }
+                        GameAction.REQUEST_SYNC -> sendFullStateTo(client)
 
-                        GameAction.LEAVE -> {
-                            removeClient(client)
-                        }
+                        GameAction.LEAVE -> removeClient(client)
 
                         else -> {}
                     }
@@ -105,9 +94,7 @@ class NetworkGameServer(
         }
     }
 
-    /* ===================================================== */
-    /* ================= JOIN =============================== */
-    /* ===================================================== */
+    /* ================= JOIN ================= */
 
     private fun handleJoin(
         client: ClientConnection,
@@ -119,7 +106,6 @@ class NetworkGameServer(
         val lobbyPlayer = lobby.addPlayer(client.playerId, name)
 
         if (lobbyPlayer == null) {
-            // دخل أثناء اللعب → انتظار
             sendToClient(
                 client,
                 NetworkMessage.createError(
@@ -133,29 +119,22 @@ class NetworkGameServer(
         broadcastLobby()
     }
 
-    /* ===================================================== */
-    /* ================= START GAME ========================= */
-    /* ===================================================== */
+    /* ================= START GAME ================= */
 
     private fun handleStartGame(client: ClientConnection) {
 
         val host = lobby.getHost() ?: return
         if (host.networkId != client.playerId) return
-
         if (!lobby.startGame()) return
 
         gameEngine = lobby.createGameEngine()
         gameEngine?.startGameFromLobby()
 
-        // ربط الشبكة باللاعبين
         mapNetworkPlayersToEngine()
-
         broadcastFullState()
     }
 
-    /* ===================================================== */
-    /* ================= MAP PLAYERS ======================== */
-    /* ===================================================== */
+    /* ================= MAP PLAYERS ================= */
 
     private fun mapNetworkPlayersToEngine() {
 
@@ -174,9 +153,7 @@ class NetworkGameServer(
         }
     }
 
-    /* ===================================================== */
-    /* ================= PLAY CARD ========================== */
-    /* ===================================================== */
+    /* ================= PLAY CARD ================= */
 
     private fun handlePlayCard(
         client: ClientConnection,
@@ -194,29 +171,21 @@ class NetworkGameServer(
         if (!engine.playCard(player, card)) return
 
         processAITurns()
-
         broadcastFullState()
 
-        // عرض الفائز 1.5 ثانية
         if (engine.currentTrick.isEmpty() &&
             engine.lastTrickWinner != null
         ) {
             scope.launch {
                 delay(1500)
-
                 engine.clearTrickAfterDelay()
-
-                // 🔥 استبدال AI بلاعبين منتظرين
                 lobby.replaceAIWithWaitingPlayers(engine)
-
                 broadcastFullState()
             }
         }
     }
 
-    /* ===================================================== */
-    /* ================= AI ================================ */
-    /* ===================================================== */
+    /* ================= AI ================= */
 
     private fun processAITurns() {
 
@@ -232,9 +201,7 @@ class NetworkGameServer(
         }
     }
 
-    /* ===================================================== */
-    /* ================= LOBBY SYNC ======================== */
-    /* ===================================================== */
+    /* ================= LOBBY ================= */
 
     private fun broadcastLobby() {
 
@@ -251,9 +218,7 @@ class NetworkGameServer(
         }
     }
 
-    /* ===================================================== */
-    /* ================= STATE SYNC ======================== */
-    /* ===================================================== */
+    /* ================= STATE ================= */
 
     private fun broadcastFullState() {
 
@@ -272,15 +237,15 @@ class NetworkGameServer(
         clients.forEach {
             sendToClient(it, message)
         }
+
+        onGameUpdated?.invoke()
     }
 
     private fun sendFullStateTo(client: ClientConnection) {
         broadcastFullState()
     }
 
-    /* ===================================================== */
-    /* ================= REMOVE ============================ */
-    /* ===================================================== */
+    /* ================= REMOVE ================= */
 
     private fun removeClient(client: ClientConnection) {
 
@@ -288,14 +253,14 @@ class NetworkGameServer(
         lobby.removePlayer(client.playerId)
         networkPlayerMap.remove(client.playerId)
 
+        onClientDisconnected?.invoke(client.playerId)
+
         try { client.socket.close() } catch (_: Exception) {}
 
         broadcastLobby()
     }
 
-    /* ===================================================== */
-    /* ================= SEND ============================== */
-    /* ===================================================== */
+    /* ================= SEND ================= */
 
     private fun sendToClient(
         client: ClientConnection,
@@ -308,11 +273,10 @@ class NetworkGameServer(
         } catch (_: Exception) {}
     }
 
-    /* ===================================================== */
-    /* ================= STOP ============================== */
-    /* ===================================================== */
+    /* ================= STOP ================= */
 
     fun stopServer() {
+
         isRunning.set(false)
         scope.cancel()
 
@@ -324,9 +288,7 @@ class NetworkGameServer(
     }
 }
 
-/* ===================================================== */
-/* ================= CLIENT CONNECTION ================= */
-/* ===================================================== */
+/* ================= CLIENT ================= */
 
 data class ClientConnection(
     val socket: Socket,
