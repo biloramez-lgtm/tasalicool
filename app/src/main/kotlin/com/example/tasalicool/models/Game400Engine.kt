@@ -8,7 +8,13 @@ import java.util.UUID
 class Game400Engine(
     var gameMode: GameMode = GameMode.SINGLE_PLAYER,
     humanCount: Int = 1,
-    val players: MutableList<Player> = initializePlayers(gameMode, humanCount)
+    val players: MutableList<Player> = initializePlayers(gameMode, humanCount),
+
+    // ✅ Callbacks اختيارية
+    val onClientConnected: ((Player) -> Unit)? = null,
+    val onClientDisconnected: ((Player) -> Unit)? = null,
+    val onGameUpdated: (() -> Unit)? = null
+
 ) : Serializable {
 
     private val deck = Deck()
@@ -52,6 +58,7 @@ class Game400Engine(
         dealerIndex = -1
         winner = null
         startNewRound()
+        onGameUpdated?.invoke()
     }
 
     /* ===================================================== */
@@ -77,6 +84,8 @@ class Game400Engine(
 
         currentPlayerIndex = (dealerIndex + 1) % players.size
         phase = GamePhase.BIDDING
+
+        onGameUpdated?.invoke()
     }
 
     /* ===================================================== */
@@ -88,11 +97,10 @@ class Game400Engine(
         if (phase != GamePhase.BIDDING) return false
         if (player != getCurrentPlayer()) return false
 
-        // نظام المزايدة حسب السكور
         val minBid = when {
             player.score < 30 -> 2
             player.score < 40 -> 3
-            else -> 4   // من 40 وفوق لازم 4 عالأقل
+            else -> 4
         }
 
         if (bid < minBid || bid > 13) return false
@@ -105,6 +113,7 @@ class Game400Engine(
             currentPlayerIndex = (dealerIndex + 1) % players.size
         }
 
+        onGameUpdated?.invoke()
         return true
     }
 
@@ -131,6 +140,7 @@ class Game400Engine(
             nextPlayer()
         }
 
+        onGameUpdated?.invoke()
         return true
     }
 
@@ -154,6 +164,8 @@ class Game400Engine(
         if (trickNumber >= 13) {
             finishRound()
         }
+
+        onGameUpdated?.invoke()
     }
 
     /* ===================================================== */
@@ -202,24 +214,23 @@ class Game400Engine(
 
     private fun finishRound() {
 
-        // فوز مباشر إذا 13 / 13
         players.forEach { player ->
             if (player.bid == 13 && player.tricksWon == 13) {
                 winner = player
                 phase = GamePhase.GAME_OVER
+                onGameUpdated?.invoke()
                 return
             }
         }
 
-        // حساب النقاط
         players.forEach { it.applyRoundScore() }
 
-        // شرط الفوز عند 41+
         players.forEach { player ->
             val partner = getPartner(player)
             if (player.score >= 41 && partner.score > 0) {
                 winner = player
                 phase = GamePhase.GAME_OVER
+                onGameUpdated?.invoke()
                 return
             }
         }
@@ -227,6 +238,8 @@ class Game400Engine(
         if (phase != GamePhase.GAME_OVER) {
             phase = GamePhase.ROUND_END
         }
+
+        onGameUpdated?.invoke()
     }
 
     /* ===================================================== */
@@ -250,6 +263,8 @@ class Game400Engine(
         server.players.forEach {
             this.players.add(it)
         }
+
+        onGameUpdated?.invoke()
     }
 
     /* ===================================================== */
